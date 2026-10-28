@@ -1,0 +1,119 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Guia de estudo e defesa - Benchmark de PTQ</title>
+<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.35}h1{color:#2F3E9E}h2{color:#2F3E9E;border-bottom:1px solid #999}h3{color:#444}table{border-collapse:collapse}td,th{border:1px solid #888;padding:3px 6px;font-size:10pt}th{background:#DDE1F5}code{font-family:Consolas,monospace;font-size:10pt}.box{background:#FFF7D6;border:1px solid #d9c36a;padding:6px}</style></head><body>
+
+<h1>Guia de estudo e defesa</h1>
+<p><b>Benchmark de quantização pós-treino (PTQ) para modelos de linguagem abertos em ambientes de recursos limitados</b><br>Versão de 28/09/2026. Serve para entender, apresentar e defender o trabalho. Onde há número estimado por nós, está marcado como <i>estimativa</i>; o que foi medido está marcado como <i>medido</i>.</p>
+
+<h2>1. A defesa em 30 segundos</h2>
+<p>Modelos de linguagem de 8 bilhões de parâmetros funcionam bem, mas em precisão original (FP16) ocupam cerca de 16 GB só de pesos, o que exige GPUs caras. A <b>quantização pós-treino (PTQ)</b> converte os pesos de 16 bits para 8 ou 4 bits <b>sem retreinar</b>. A pergunta é: <b>o quanto se perde em qualidade e o quanto se ganha em memória e velocidade?</b> Fizemos um <b>benchmark comparativo e reprodutível</b> de Llama 3 8B e Qwen3-8B em FP16, INT8 e INT4, medindo qualidade (perplexidade no WikiText-2) e custo (disco, pico de memória de vídeo, latência e vazão), sempre comparando cada modelo quantizado com o seu próprio baseline FP16 sob o mesmo protocolo.</p>
+
+<h2>2. Por que o problema importa (as contas)</h2>
+<ul>
+<li>Memória dos pesos = número de parâmetros x bytes por parâmetro. Um modelo de 8 bilhões em FP16 (2 bytes) = ~16 GB. <i>Medido:</i> os arquivos do Qwen3-8B-Base baixado somam 16,4 GB.</li>
+<li>Em 8 bits (1 byte) a metade; em 4 bits (0,5 byte) um quarto, mais os fatores de escala.</li>
+<li>Além dos pesos há o <b>cache de chaves e valores (KV cache)</b>: no Qwen3-8B, 36 camadas x 8 cabeças KV x 128 x 2 (K e V) x 2 bytes = ~147 KB por token, ou seja, ~0,3 GB para 2048 tokens.</li>
+</ul>
+<div class="box"><b>Ponto crítico para a defesa:</b> a &quot;meta de 4 GB de VRAM&quot; provavelmente <b>não será atingida por um modelo de 8B</b>. <i>Estimativa</i> (Qwen3-8B): os pesos em INT4 ficam em ~3,6 GB para as camadas lineares, mais ~2,5 GB de embeddings e camada de saída que normalmente permanecem em FP16, totalizando ~6 GB. Para o Llama 3 8B a conta dá ~5,7 GB. Isso não é falha do trabalho: é um <b>resultado</b>. O Berg pediu justamente que o alvo de ~4 GB não seja tratado como expectativa e que a viabilidade de cada configuração seja determinada pelos experimentos. Se algo não couber, registramos como &quot;não viável&quot; (OOM) e explicamos o porquê. Vamos confirmar essas contas com a medição.</div>
+
+<h2>3. Conceitos que você precisa dominar</h2>
+<h3>3.1 Quantização</h3>
+<p>Representar cada peso com menos bits. Em vez de um número de ponto flutuante de 16 bits, guarda-se um inteiro de 8 ou 4 bits e uma <b>escala</b> (e às vezes um ponto zero) para reconstruir o valor aproximado. Perde-se precisão; ganha-se memória.</p>
+<h3>3.2 PTQ versus QAT</h3>
+<p><b>PTQ</b> (pós-treino) quantiza o modelo já treinado, sem retreinar; é rápido e barato. <b>QAT</b> (treino consciente de quantização) retreina com a quantização simulada; costuma preservar mais qualidade, mas custa muito mais. Escolhemos PTQ porque o foco é o cenário de recursos limitados e porque o escopo validado com o orientador exclui <i>fine-tuning</i>.</p>
+<h3>3.3 Somente pesos versus pesos e ativações</h3>
+<p>Quantizamos <b>só os pesos</b> (o que ocupa memória). As ativações ficam em 16 bits. Isso é o que fazem GPTQ e AWQ em INT4. (SmoothQuant quantiza também as ativações, mas está fora do nosso escopo.)</p>
+<h3>3.4 As técnicas candidatas</h3>
+<table><tr><th>Técnica</th><th>O que faz</th><th>Ideia central</th></tr>
+<tr><td><b>bitsandbytes (LLM.int8)</b></td><td>INT8</td><td>Alguns canais têm valores atípicos (<i>outliers</i>) muito grandes que quebram a quantização simples. O método separa esses canais e os calcula em 16 bits, e o resto em 8 bits.</td></tr>
+<tr><td><b>GPTQ</b></td><td>INT4 (e 3, 8)</td><td>Quantiza camada por camada e <b>compensa o erro</b> nos pesos ainda não quantizados, usando informação de segunda ordem (aproximação da matriz Hessiana) calculada sobre dados de calibração.</td></tr>
+<tr><td><b>AWQ</b></td><td>INT4</td><td>Os pesos não são igualmente importantes: os ligados a ativações grandes (~1% dos canais) pesam mais. O método <b>escala esses canais antes de quantizar</b> para protegê-los.</td></tr></table>
+<h3>3.5 Tamanho de grupo (g128)</h3>
+<p>Cada 128 pesos consecutivos compartilham uma escala. Grupos menores = mais precisão, mais memória extra. 128 é o padrão da literatura, e por isso comparável com os valores publicados.</p>
+<h3>3.6 Dados de calibração</h3>
+<p>GPTQ e AWQ usam um pequeno conjunto de textos (aqui, 128 amostras de 2048 tokens) para decidir como quantizar. <b>Usamos um corpus diferente do de avaliação (C4)</b>, para que a métrica de qualidade não seja otimista por contaminação. Vários artigos calibram no próprio WikiText-2, o que favorece o resultado; por isso nosso número pode sair um pouco pior que o publicado, e isso é esperado e defensável.</p>
+
+<h3>3.7 Perplexidade (PPL)</h3>
+<p>Mede o quanto o modelo &quot;se surpreende&quot; com um texto de teste. Fórmula: <code>PPL = exp( - (1/N) x soma de log P(token_t | tokens anteriores) )</code>, ou seja, a exponencial da entropia cruzada média por token. <b>Menor é melhor.</b> Intuição: PPL 7 equivale a o modelo hesitar, em média, entre ~7 opções equiprováveis a cada token.</p>
+<ul>
+<li><b>Nosso protocolo (estilo GPTQ/AWQ):</b> WikiText-2 (variante <code>wikitext-2-raw-v1</code>, split de teste) concatenado com <code>\n\n</code>, tokenizado pelo tokenizer do próprio modelo, dividido em janelas sem sobreposição de 2048 tokens. É o protocolo dos artigos que usamos como referência.</li>
+<li><b>Cuidado:</b> o <code>lm-evaluation-harness</code> reporta <code>word_perplexity</code> e <code>bits_per_byte</code>, que são <b>outras grandezas</b>. Não se compara 6,99 com o valor do harness. Por isso rodamos os dois e reportamos ambos, cada um com a sua referência.</li>
+<li><b>Limitação assumida:</b> perplexidade mede modelagem de linguagem, não qualidade de geração livre nem de tarefas (raciocínio, código). É a ameaça de validade de construto declarada no projeto.</li>
+</ul>
+<h3>3.8 Métricas de custo</h3>
+<ul><li><b>Tamanho em disco</b> dos pesos.</li><li><b>Pico de memória de vídeo</b> durante a inferência. Na DGX Spark a memória é unificada com a CPU, então medimos com <code>torch.cuda.max_memory_allocated</code> e declaramos isso.</li>
+<li><b>TTFT</b> (<i>time to first token</i>): tempo até o primeiro token; reflete o processamento do prompt (<i>prefill</i>).</li>
+<li><b>Vazão</b> (tokens por segundo) na geração (<i>decode</i>). A geração é limitada pela leitura da memória, por isso menos bytes por peso tende a acelerar. Mas <b>não afirmamos isso: medimos</b>; é comum o INT8 do bitsandbytes ser mais lento que FP16 por causa do custo de descompressão.</li></ul>
+
+<h2>4. Desenho do experimento</h2>
+<ul>
+<li><b>Tipo:</b> experimento controlado, quantitativo, comparativo. Não é um trabalho para &quot;provar&quot; uma hipótese; é um <b>benchmark</b>. Por isso o texto fala em <i>questões de estudo</i> e não em hipóteses (orientação do Berg).</li>
+<li><b>Fatores:</b> A = precisão (FP16 como baseline, INT8, INT4); B = modelo (Llama 3 8B e Qwen3-8B; outros modelos abertos de até 8B se houver tempo).</li>
+<li><b>Sem</b> fine-tuning e <b>sem</b> dataset próprio. Cada artefato quantizado é comparado com o seu próprio FP16, mesmos parâmetros.</li>
+<li><b>Seis etapas:</b> (1) baseline FP16 conferido com valores publicados; (2) quantização INT8 e INT4; (3) teste de sanidade; (4) medição de custo; (5) medição de qualidade e registro do que foi de fato usado; (6) análise comparativa e matriz de trade-off.</li>
+<li><b>Controle de variáveis:</b> versões fixas de bibliotecas, semente fixa, contexto e lote constantes, mesmo conjunto de prompts, aquecimento descartado, máquina dedicada, registro de estrangulamento térmico.</li>
+<li><b>Bancada:</b> DGX Spark como referência; Avell (RTX 3060, 6 GB) e o notebook do João Paulo como validação de viabilidade em hardware de consumo; o Colab só para prototipação.</li>
+<li><b>Estatística:</b> latência e vazão não são normais e têm cauda longa, então usamos <b>mediana e intervalo interquartil</b>, teste de <b>Kruskal-Wallis</b> entre os níveis (alternativa não paramétrica à ANOVA), comparações par a par por <b>Mann-Whitney</b> com correção para múltiplas comparações, e tamanho de efeito. A qualidade é a variação percentual relativa da PPL contra o baseline.</li>
+<li><b>Limiar de 3%:</b> é só uma <b>referência de interpretação</b> (aumento relativo de PPL), não uma expectativa nem critério de aprovação. Atenção: a literatura mostra, para estes dois modelos, degradação em INT4 acima disso (ver seção 6).</li></ul>
+
+<h2>5. O que já foi feito (medido)</h2>
+<table><tr><th>Item</th><th>Resultado</th></tr>
+<tr><td>Ambiente na DGX Spark</td><td>venv com uv, Python 3.12.13, torch 2.14.0+cu130, transformers 5.17.0, driver 580.142, CUDA 13.0, GPU NVIDIA GB10</td></tr>
+<tr><td>Qwen3-8B-Base baixado</td><td>16,4 GB (5 arquivos de pesos)</td></tr>
+<tr><td><b>Baseline FP16 do Qwen3-8B-Base</b></td><td><b>PPL = 6,9946</b> (146 janelas de 2048 tokens, semente 0, 100 s). <b>Valor publicado: 6,99.</b> O pipeline reproduz a literatura, então a bancada e o protocolo estão corretos.</td></tr>
+<tr><td><b>Baseline FP16 do Llama 3 8B</b></td><td><b>PPL = 6,1359</b> (141 janelas de 2048 tokens, semente 0, 83 s). <b>Valor publicado: ~6,1.</b> Acesso ao modelo aprovado pela Meta em 28/09 e download de 15 GiB concluído.</td></tr></table>
+<p><b>Por que esse resultado importa na defesa:</b> a etapa 1 do protocolo existe justamente para provar que a nossa bancada mede o que a literatura mede. Se o baseline não batesse, todos os números seguintes seriam suspeitos.</p>
+
+<h2>6. Números de referência da literatura (não são nossos)</h2>
+<table><tr><th>Modelo</th><th>FP16</th><th>8 bits</th><th>INT4 g128 GPTQ</th><th>INT4 g128 AWQ</th></tr>
+<tr><td>Llama 3 8B</td><td>6,1</td><td>6,1</td><td>6,6 (+8%)</td><td>6,4 (+5%)</td></tr>
+<tr><td>Qwen3-8B-Base</td><td>6,99</td><td>6,99</td><td>7,22 (+3,3%)</td><td>8,11 (+16%)</td></tr></table>
+<p>Fontes: Huang et al. (2024), arXiv 2404.14047 (Llama 3; calibraram no próprio WikiText-2) e o estudo empírico de quantização do Qwen3, arXiv 2505.02214 (calibração em C4, contexto 2048, GPU A800). <i>Conferir a lista de autores e os valores nas tabelas dos artigos antes de citar no texto.</i> Leitura: em 8 bits, praticamente sem perda; em 4 bits, perda perceptível, maior no Qwen3 com AWQ.</p>
+
+<h2>7. Perguntas prováveis da banca (e como responder)</h2>
+<p><b>1. Por que perplexidade e não acurácia em tarefas?</b> É a métrica padrão para isolar a degradação da modelagem de linguagem causada pela quantização, é barata, determinística e permite comparar com dezenas de artigos. Reconhecemos o limite: não mede qualidade de geração livre; está declarado como ameaça de validade.</p>
+<p><b>2. Por que PTQ e não QAT ou fine-tuning?</b> O cenário-alvo é hardware limitado, onde retreinar é inviável; e o escopo foi validado com o orientador. PTQ é o ponto de entrada mais acessível.</p>
+<p><b>3. Por que esses dois modelos?</b> São famílias abertas de desempenho competitivo até 8B, com arquiteturas e tokenizers diferentes (vocabulário de 128 mil versus 152 mil), o que permite ver se o efeito depende do nível de quantização ou da família. Outros modelos entram se houver tempo.</p>
+<p><b>4. Por que usaram o modelo Base e não o Instruct?</b> Os valores publicados que usamos para validar o baseline são de modelos Base; assim a validação é direta. (Confirmar a decisão final do grupo antes da defesa.)</p>
+<p><b>5. A meta de 4 GB de VRAM foi atingida?</b> Provavelmente não para 8B, e isso é um resultado: com as ferramentas padrão, embeddings e camada de saída ficam em FP16, e os pesos em INT4 já passam de ~5,5 GB. Registramos a viabilidade em cada bancada e discutimos o que faltaria (por exemplo, modelos menores ou quantizar também embeddings).</p>
+<p><b>6. Por que calibrar no C4 e não no WikiText-2?</b> Para não contaminar a métrica: calibrar e avaliar no mesmo corpus tende a dar PPL otimista. Por isso nossos números podem ser um pouco piores que os de artigos que calibram no WikiText.</p>
+<p><b>7. Como sabem que o pipeline está correto?</b> A etapa 1 reproduz o baseline publicado nos dois modelos (Qwen3-8B-Base: 6,9946 contra 6,99; Llama 3 8B: 6,1359 contra ~6,1). Todo o resto usa o mesmo script e protocolo.</p>
+<p><b>8. Por que Kruskal-Wallis e Mann-Whitney?</b> Latência e vazão não seguem distribuição normal e têm cauda; testes não paramétricos não assumem normalidade. A correção para múltiplas comparações evita falsos positivos.</p>
+<p><b>9. O que é o limiar de 3% e por que ele?</b> É uma referência de interpretação, não um critério de aprovação nem uma expectativa. Não pressupomos que será atingido; a literatura sugere que em INT4 pode ser ultrapassado nestes modelos.</p>
+<p><b>10. Os resultados generalizam?</b> Não necessariamente; valem para as famílias e o hardware avaliados. É a ameaça de validade externa, declarada. O que generaliza é o protocolo, que é reproduzível.</p>
+<p><b>11. Qual a diferença para o PV-Tuning?</b> O PV-Tuning (Malinovskii et al., 2024) busca compressão extrema (1 a 2 bits) com otimização e <i>fine-tuning</i> sobre parâmetros já quantizados. O nosso trabalho é um benchmark comparativo de PTQ em INT8 e INT4, sem retreino, com foco em métricas práticas de hardware.</p>
+<p><b>12. Por que usar a DGX se o alvo é hardware limitado?</b> Ela é a bancada de referência, onde o FP16 cabe e as medições são controladas. A viabilidade em hardware de consumo é verificada à parte, no Avell e no notebook.</p>
+<p><b>13. Como garantem reprodutibilidade?</b> Versões fixas, semente fixa, hashes dos artefatos, parâmetros registrados, e publicação de scripts e dados brutos.</p>
+<p><b>14. Questões éticas ou de licença?</b> Sem dados de pessoas. Modelos e datasets públicos; o Llama 3 exige aceite da licença da Meta, e o Qwen3 tem licença aberta; registramos a licença de cada um.</p>
+<p><b>15. O que fariam com mais tempo?</b> Avaliar tarefas downstream (raciocínio, código), outros formatos (GGUF, FP8), mais famílias de modelos e quantização de embeddings.</p>
+
+<h2>8. Glossário rápido</h2>
+<table><tr><th>Termo</th><th>Significado</th></tr>
+<tr><td>Baseline</td><td>O modelo em precisão original (FP16), contra o qual cada versão quantizada é comparada</td></tr>
+<tr><td>Outlier</td><td>Valor de ativação muito maior que os demais; quebra a quantização simples</td></tr>
+<tr><td>Prefill / decode</td><td>Processar o prompt inteiro de uma vez / gerar um token de cada vez</td></tr>
+<tr><td>OOM</td><td>Falta de memória; a configuração não cabe no hardware</td></tr>
+<tr><td>KV cache</td><td>Memória que guarda chaves e valores da atenção dos tokens já processados</td></tr>
+<tr><td>IQR</td><td>Intervalo interquartil (Q3 - Q1), medida de dispersão robusta a caudas</td></tr>
+<tr><td>Memória unificada</td><td>CPU e GPU compartilham a mesma memória física (caso da DGX Spark)</td></tr></table>
+
+<h2>9. Como reproduzir na frente da banca</h2>
+<p>Na DGX (<code>ssh joaovitor@100.77.169.76</code>), dentro de <code>~/tcc-ptq</code>:</p>
+<p><code>.venv/bin/python ppl_wikitext2.py --model models/Qwen3-8B-Base --dtype float16 --out results/qwen3-8b-base_fp16.json</code></p>
+<p>Leva ~100 s e imprime a PPL, o número de janelas, as versões e a data. O script e os resultados estão no Drive em <i>Rascunhos &gt; Benchmark PTQ</i>.</p>
+
+<h2>10. Leituras para aprofundar</h2>
+<ul>
+<li>Frantar et al. (2023). <i>GPTQ: accurate post-training quantization for generative pre-trained transformers.</i> ICLR.</li>
+<li>Lin et al. (2024). <i>AWQ: activation-aware weight quantization for LLM compression and acceleration.</i> MLSys.</li>
+<li>Dettmers et al. (2022). <i>LLM.int8(): 8-bit matrix multiplication for transformers at scale.</i> NeurIPS.</li>
+<li>Xiao et al. (2023). <i>SmoothQuant.</i> ICML.</li>
+<li>Malinovskii et al. (2024). <i>PV-Tuning: beyond straight-through estimation for extreme LLM compression.</i></li>
+<li>Huang et al. (2024). <i>How good are low-bit quantized LLaMA3 models?</i> arXiv 2404.14047.</li>
+<li>Estudo empírico de quantização do Qwen3, arXiv 2505.02214.</li>
+<li>Merity et al. (2017). <i>Pointer sentinel mixture models</i> (WikiText).</li></ul>
+
+<h2>11. O que ainda falta</h2>
+<ul><li>Script de custo (pico de memória, TTFT, vazão).</li><li>Quantização INT8 e INT4 e suas medições; análise estatística e matriz de trade-off.</li>
+<li>Decisões em aberto: Base ou Instruct; template do Gate 5; Regulamento e Normas Complementares (a pedir à organização).</li></ul>
+<p><i>Este guia é atualizado a cada resultado novo. Números marcados como estimativa devem ser substituídos pelos medidos.</i></p>
+</body></html>

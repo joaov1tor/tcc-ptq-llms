@@ -1,0 +1,59 @@
+{
+ "model": "models/Qwen3-8B-Base-awq4-sym",
+ "dtype": "float16",
+ "quant": "pre",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 5.68,
+ "mem_after_load_gb": 5.68,
+ "peak_mem_gb": 5.839,
+ "peak_reserved_gb": 5.922,
+ "tps_invalid_reps": 0,
+ "ttft_ms": {
+  "median": 132.9401,
+  "q1": 132.7068,
+  "q3": 133.4927,
+  "iqr": 0.7859
+ },
+ "tokens_per_s": {
+  "median": 33.2078,
+  "q1": 33.1425,
+  "q3": 33.2359,
+  "iqr": 0.0934
+ },
+ "ttft_ms_raw": [
+  132.66,
+  132.92,
+  132.66,
+  133.85,
+  132.96,
+  132.83,
+  131.59,
+  133.21,
+  133.59,
+  133.82
+ ],
+ "tokens_per_s_raw": [
+  33.19,
+  33.238,
+  33.245,
+  33.243,
+  33.103,
+  33.226,
+  33.229,
+  33.173,
+  33.12,
+  33.132
+ ],
+ "gpu": "NVIDIA GB10",
+ "gpu_other_procs_before": "2505, /srv/ai/runtime/pyannote-test/.venv/bin/python3, 254 MiB\n89181, python3, 3283 MiB\n154958, /srv/ai/runtime/whisper.cpp/build/bin/whisper-server, 3694 MiB\n1704426, /usr/local/lib/ollama/llama-server, 545 MiB",
+ "gpu_temp_clock_throttle_before": "62, 2405 MHz, 0x0000000000000000",
+ "gpu_temp_clock_throttle_after": "63, 2489 MHz, 0x0000000000000000",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "ts": "2026-10-21 17:03:34"
+}

@@ -1,0 +1,56 @@
+{
+ "model": "models/Qwen3-8B-Base",
+ "dtype": "float16",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 15.256,
+ "mem_after_load_gb": 15.258,
+ "peak_mem_gb": 15.411,
+ "ttft_ms": {
+  "median": 171.04,
+  "q1": 170.3436,
+  "q3": 171.6082,
+  "iqr": 1.2646
+ },
+ "tokens_per_s": {
+  "median": 11.4415,
+  "q1": 11.4301,
+  "q3": 11.4547,
+  "iqr": 0.0246
+ },
+ "ttft_ms_raw": [
+  171.2,
+  169.64,
+  172.42,
+  170.21,
+  170.95,
+  171.96,
+  170.76,
+  171.75,
+  171.13,
+  169.98
+ ],
+ "tokens_per_s_raw": [
+  11.479,
+  11.462,
+  11.457,
+  11.447,
+  11.445,
+  11.438,
+  11.43,
+  11.431,
+  11.424,
+  11.424
+ ],
+ "gpu": "NVIDIA GB10",
+ "gpu_other_procs_before": "2186, /srv/ai/runtime/whisper.cpp/build/bin/whisper-server, 2044 MiB\n2505, /srv/ai/runtime/pyannote-test/.venv/bin/python3, 254 MiB",
+ "gpu_temp_clock_throttle_before": "36, 2411 MHz, 0x0000000000000000",
+ "gpu_temp_clock_throttle_after": "58, 2535 MHz, 0x0000000000000000",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "ts": "2026-09-29 00:25:29"
+}

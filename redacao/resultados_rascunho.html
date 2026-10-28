@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Rascunho de Resultados</title>
+<style>
+body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify}
+h1{font-size:14pt;text-transform:uppercase} h2{font-size:12pt;font-weight:bold}
+table{border-collapse:collapse;margin:8px 0;font-size:10.5pt} td,th{border:1px solid #000;padding:3px 6px}
+.nota{font-size:10.5pt} .pend{background:#fff2a8}
+</style></head><body>
+
+<p class="nota"><b>RASCUNHO para revisão de João Vitor.</b> Números tirados de <i>resultados_benchmark_PTQ.xlsx</i> e dos JSON em <i>resultados/</i> (Drive: Benchmark PTQ). Trechos em amarelo dependem de análise estatística (Jean), de medição em hardware de consumo ou de decisão do orientador. Interpretações causais estão marcadas como hipótese quando não foram testadas.</p>
+
+<h1>4 Resultados</h1>
+
+<h2>4.1 Validação da linha de base</h2>
+<p>Antes de comparar as variantes quantizadas, verificou-se se o protocolo de perplexidade reproduz valores publicados para o FP16. O Llama 3 8B obteve 6,1359 e o Qwen3-8B-Base, 6,9946, contra cerca de 6,1 (Huang et al., 2024) e 6,99 (Zheng et al., 2025) na literatura, com o mesmo contexto de 2048 <i>tokens</i> e o mesmo conjunto (WikiText-2, partição de teste). A concordância indica que o conjunto, o carregamento e as janelas estão equivalentes aos usados nos trabalhos de referência.</p>
+
+<h2>4.2 Qualidade: perplexidade</h2>
+<p>A Tabela 1 apresenta a perplexidade de cada configuração e a variação relativa em relação ao FP16 do mesmo modelo.</p>
+<p class="nota"><b>Tabela 1</b> – Perplexidade no WikiText-2 (teste, contexto 2048, janelas sem sobreposição; menor é melhor).</p>
+<table><tr><th>Modelo</th><th>Configuração</th><th>PPL</th><th>Δ PPL vs FP16</th></tr><tr><td>Llama 3 8B</td><td>FP16</td><td>6,1359</td><td>-</td></tr><tr><td>Llama 3 8B</td><td>INT8 (LLM.int8())</td><td>6,2278</td><td>+1,5%</td></tr><tr><td>Llama 3 8B</td><td>INT4 GPTQ</td><td>6,6754</td><td>+8,8%</td></tr><tr><td>Llama 3 8B</td><td>INT4 AWQ</td><td>6,7248</td><td>+9,6%</td></tr><tr><td>Qwen3-8B-Base</td><td>FP16</td><td>6,9946</td><td>-</td></tr><tr><td>Qwen3-8B-Base</td><td>INT8 (LLM.int8())</td><td>7,0299</td><td>+0,5%</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 GPTQ</td><td>7,3008</td><td>+4,4%</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 AWQ</td><td>7,9623</td><td>+13,8%</td></tr></table>
+<p>A quantização em 8 bits preservou praticamente a qualidade: +1,5% no Llama 3 8B e +0,5% no Qwen3-8B-Base. Em 4 bits a degradação foi maior e dependeu do modelo e do método. No Llama 3 8B, GPTQ e AWQ ficaram próximos (+8,8% e +9,6%). No Qwen3-8B-Base, o GPTQ teve +4,4%, enquanto o AWQ teve +13,8%. Nenhuma configuração de 4 bits ficou abaixo do limiar de 3% adotado como referência de interpretação (seção 3.5); o menor valor foi +4,4% (GPTQ no Qwen3-8B-Base).</p>
+<p>Esses valores são compatíveis com a literatura com grupo de 128: +6,6% (GPTQ) e +8,2% (AWQ) para o Llama 3 8B (Huang et al., 2024) e +3,3% (GPTQ) e +16,0% (AWQ) para o Qwen3-8B-Base (Zheng et al., 2025). Em particular, o AWQ pior que o GPTQ no Qwen3 também foi observado naquele trabalho. <span class="pend">[PENDENTE: confirmar visualmente as tabelas dos dois artigos no PDF.]</span></p>
+
+<h2>4.3 Custo de execução</h2>
+<p>A Tabela 2 reúne tamanho em disco, memória de pico, TTFT e vazão de decodificação (lote 1, prompt de 512 <i>tokens</i>, 128 novos <i>tokens</i>). Os valores principais são as medianas da primeira série de 10 repetições; a última coluna mostra o intervalo das medianas das três séries realizadas.</p>
+<p class="nota"><b>Tabela 2</b> – Custo de execução na DGX Spark (GB10; memória unificada).</p>
+<table><tr><th>Modelo</th><th>Configuração</th><th>Disco (GiB)</th><th>Pico (GiB)</th><th>TTFT (ms)</th><th>Tokens/s</th><th>Variação entre séries (tok/s)</th></tr><tr><td>Llama 3 8B</td><td>FP16</td><td>14,96</td><td>15,11</td><td>150</td><td>13,6</td><td>13,39 a 13,70</td></tr><tr><td>Llama 3 8B</td><td>INT8 (LLM.int8())</td><td>8,46</td><td>8,63</td><td>169</td><td>18,1</td><td>17,92 a 18,53</td></tr><tr><td>Llama 3 8B</td><td>INT4 GPTQ</td><td>5,34</td><td>5,46</td><td>121</td><td>36,5</td><td>36,27 a 36,53</td></tr><tr><td>Llama 3 8B</td><td>INT4 AWQ</td><td>5,33</td><td>5,49</td><td>122</td><td>36,3</td><td>36,28 a 36,38</td></tr><tr><td>Qwen3-8B-Base</td><td>FP16</td><td>15,26</td><td>15,41</td><td>171</td><td>11,4</td><td>11,15 a 11,44</td></tr><tr><td>Qwen3-8B-Base</td><td>INT8 (LLM.int8())</td><td>8,79</td><td>9,22</td><td>221</td><td>15,3</td><td>15,05 a 15,25</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 GPTQ</td><td>5,68</td><td>5,81</td><td>131</td><td>33,0</td><td>32,82 a 33,05</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 AWQ</td><td>5,68</td><td>5,83</td><td>133</td><td>32,9</td><td>32,74 a 33,17</td></tr></table>
+<p><b>Memória e disco.</b> O INT8 reduziu o tamanho em disco em 43,4% (Llama 3 8B) e 42,4% (Qwen3-8B-Base), e o pico de memória em 42,9% e 40,1%. Os esquemas de 4 bits reduziram o disco em cerca de 64% e 63% e o pico em 63,7% a 63,9% (Llama) e 62,1% a 62,3% (Qwen3). A diferença de memória entre GPTQ e AWQ é desprezível, como esperado, pois ambos usam o mesmo formato de 4 bits com grupo de 128.</p>
+<p><b>Vazão.</b> Em decodificação, o INT8 foi 1,34× (Llama) e 1,33× (Qwen3) mais rápido que o FP16, e os esquemas de 4 bits chegaram a 2,67× a 2,69× (Llama) e 2,87× a 2,89× (Qwen3). GPTQ e AWQ tiveram vazão praticamente igual, o que é coerente com o uso do mesmo <i>kernel</i> (seção 3.3). A variação entre as três séries ficou abaixo de 2% nas medianas, e a ordem entre as configurações não mudou em nenhuma série.</p>
+<p><b>TTFT.</b> O comportamento do TTFT diferiu da vazão: o INT8 ficou <b>mais lento</b> que o FP16 (169 contra 150 ms no Llama; 221 contra 171 ms no Qwen3), enquanto os esquemas de 4 bits ficaram mais rápidos (121 e 122 ms no Llama; 131 e 133 ms no Qwen3). Uma explicação provável para o INT8 é o custo de quantizar e dequantizar ativações e pesos na fase de <i>prefill</i>, mas isso não foi isolado nas medições. <span class="pend">[PENDENTE: indicar como hipótese na versão final ou testar com perfilador.]</span></p>
+<p>As medições em memória unificada medem o pico alocado pelo <i>PyTorch</i> e não separam CPU e GPU (seção 3.6). Em alguns momentos outros processos usaram a GPU da máquina; isso está registrado nos arquivos de resultado de cada medição (campo <i>gpu_other_procs_before</i>). Uma das réplicas (Llama 3 8B, FP16, série r3) falhou por falta de memória na GPU compartilhada e foi refeita em outro horário.</p>
+
+<h2>4.4 Relação entre qualidade e custo</h2>
+<p>A Tabela 3 resume, para cada configuração, o que se pagou em perplexidade e o que se ganhou em memória e velocidade.</p>
+<p class="nota"><b>Tabela 3</b> – Variação em relação ao FP16 do mesmo modelo.</p>
+<table><tr><th>Modelo</th><th>Configuração</th><th>Δ PPL</th><th>Pico de memória</th><th>Tokens/s</th></tr><tr><td>Llama 3 8B</td><td>INT8 (LLM.int8())</td><td>+1,5%</td><td>−42,9%</td><td>1,34×</td></tr><tr><td>Llama 3 8B</td><td>INT4 GPTQ</td><td>+8,8%</td><td>−63,9%</td><td>2,69×</td></tr><tr><td>Llama 3 8B</td><td>INT4 AWQ</td><td>+9,6%</td><td>−63,7%</td><td>2,67×</td></tr><tr><td>Qwen3-8B-Base</td><td>INT8 (LLM.int8())</td><td>+0,5%</td><td>−40,1%</td><td>1,33×</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 GPTQ</td><td>+4,4%</td><td>−62,3%</td><td>2,89×</td></tr><tr><td>Qwen3-8B-Base</td><td>INT4 AWQ</td><td>+13,8%</td><td>−62,1%</td><td>2,87×</td></tr></table>
+<p>O INT8 é a opção de menor risco: quase não altera a perplexidade e reduz a memória em cerca de 40%. Os esquemas de 4 bits dão o maior ganho (cerca de 62 a 64% de memória e quase o triplo da vazão), ao custo de uma perda de qualidade de 4,4% a 13,8%. O melhor equilíbrio observado foi o GPTQ no Qwen3-8B-Base (+4,4% de perplexidade, −62,3% de memória, 2,89× de vazão); o pior, o AWQ no mesmo modelo. A escolha entre INT8 e INT4 depende, portanto, de quanto de degradação a aplicação tolera. <span class="pend">[PENDENTE: leitura estatística das diferenças (Kruskal-Wallis e Mann-Whitney com correção, Jean) antes de afirmar “melhor” ou “pior”.]</span></p>
+
+<h2>4.5 Análises de sensibilidade</h2>
+<p><b>Protocolo de calibração.</b> O gptqmodel usa documentos inteiros do C4 como calibração, diferente do protocolo original do GPTQ (128 blocos de 2048 <i>tokens</i>). Para verificar se isso afetava os resultados, GPTQ e AWQ foram refeitos com blocos de 2048 nos dois modelos. A perplexidade mudou no máximo 0,2% (por exemplo, AWQ no Qwen3: 7,9623 para 7,9463). Concluiu-se que o protocolo de calibração não explica as diferenças entre métodos.</p>
+<p><b>AWQ simétrico no Qwen3-8B-Base.</b> Para testar se o <i>zero-point</i> do AWQ assimétrico explicava o pior resultado no Qwen3, o AWQ foi refeito em modo simétrico, mantendo todo o resto. A perplexidade foi 7,9620, praticamente igual aos 7,9623 do modo assimétrico. Foi verificado que o parâmetro foi de fato aplicado (os tensores de <i>zero-point</i> diferem entre os dois modelos). Portanto o <i>zero-point</i> também não explica o resultado. A causa dentro do algoritmo não foi isolada; como o mesmo padrão aparece na literatura, ele é tratado como característica do AWQ nesse modelo, e não como defeito da execução. <span class="pend">[PENDENTE: o orientador pode decidir se vale testar outra implementação de AWQ.]</span></p>
+
+<h2>4.6 Resultados negativos e metas não atingidas</h2>
+<ul>
+<li><b>Meta de 4 GB de VRAM:</b> não foi atingida. O menor pico medido foi de 5,46 GiB (Llama 3 8B, GPTQ). Um modelo de 8 bilhões de parâmetros em 4 bits já ocupa cerca de 5 GiB só em pesos.</li>
+<li><b>Limiar de 3%:</b> nenhuma configuração de 4 bits o satisfez (melhor: +4,4%).</li>
+<li><b>AWQ no Qwen3-8B-Base:</b> degradação de +13,8%, muito maior que a do GPTQ; causa não isolada (seção 4.5).</li>
+<li><b>TTFT do INT8:</b> pior que o do FP16 nos dois modelos.</li>
+<li><b>Falha operacional:</b> uma réplica de custo falhou por falta de memória e foi refeita (seção 4.3).</li>
+</ul>
+
+<h2>4.7 Limites da interpretação</h2>
+<ul>
+<li><b>Hardware:</b> todas as medições vieram de uma única máquina (DGX Spark, memória unificada). <span class="pend">[PENDENTE: medições no Avell e no notebook de consumo; colunas de viabilidade da planilha.]</span></li>
+<li><b>Métrica:</b> apenas perplexidade por <i>token</i> em um conjunto; não se avaliaram tarefas. A perplexidade por palavra do <i>lm-eval-harness</i> não é comparável e ainda não foi medida.</li>
+<li><b>Modelos:</b> um tamanho (8 bilhões) e duas famílias; o Qwen3 foi usado na versão Base <span class="pend">[CONFIRMAR com o orientador]</span>.</li>
+<li><b>Calibração:</b> somente C4; a escolha do conjunto está pendente de aval do orientador.</li>
+<li><b>Estatística:</b> as séries de custo têm 10 repetições cada; as diferenças entre configurações ainda não foram testadas formalmente.</li>
+</ul>
+
+<h2>Referências</h2>
+<p><span class="pend">[A consolidar com a lista do capítulo 3 (Grattafiori, Yang, Huang, Zheng e as demais).]</span></p>
+</body></html>

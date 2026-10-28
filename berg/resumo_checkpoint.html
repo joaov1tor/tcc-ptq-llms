@@ -1,0 +1,31 @@
+<html><head><meta charset="utf-8"><style>body{font-family:Arial;font-size:10pt;margin:0}h1{font-size:15pt}h2{font-size:11pt;margin-top:8pt;margin-bottom:2pt}p,li{margin:2pt 0}table{border-collapse:collapse;font-size:9pt;width:100%}td,th{white-space:nowrap}td,th{border:1px solid #000;padding:1px 5px}.pend{background:#fff2a8}</style></head><body>
+<h1>Benchmark de PTQ (INT8 e INT4) em Llama 3 8B e Qwen3-8B: resumo para o checkpoint de 30/10</h1>
+<p>Grupo: João Vitor, João Paulo Barros e Jean Jônatas. Rascunho para revisão antes de enviar ao orientador.</p>
+<h2>1. Onde estamos</h2>
+<p>Os dois modelos foram quantizados com LLM.int8() (bitsandbytes), GPTQ e AWQ (gptqmodel) e medidos na DGX Spark contra o FP16: perplexidade no WikiText-2 (contexto 2048, janelas sem sobreposição) e custo (disco, pico de memória, TTFT e tokens/s, três séries de 10 repetições). O FP16 reproduz a literatura (6,14 e 6,99). Falta medir em hardware de consumo, a análise estatística e o repositório.</p>
+<table width="100%" cellpadding="2"><tr><th nowrap>Modelo</th><th nowrap>Config.</th><th nowrap>PPL</th><th nowrap>Δ PPL</th><th nowrap>Pico (GiB)</th><th nowrap>Tokens/s</th></tr>
+<tr><td nowrap>Llama 3 8B</td><td nowrap>FP16</td><td nowrap>6,1359</td><td nowrap>-</td><td nowrap>15,11</td><td nowrap>13,6</td></tr>
+<tr><td nowrap></td><td nowrap>INT8</td><td nowrap>6,2278</td><td nowrap>+1,5%</td><td nowrap>8,63</td><td nowrap>18,1</td></tr>
+<tr><td nowrap></td><td nowrap>GPTQ 4b</td><td nowrap>6,6754</td><td nowrap>+8,8%</td><td nowrap>5,46</td><td nowrap>36,5</td></tr>
+<tr><td nowrap></td><td nowrap>AWQ 4b</td><td nowrap>6,7248</td><td nowrap>+9,6%</td><td nowrap>5,49</td><td nowrap>36,3</td></tr>
+<tr><td nowrap>Qwen3-8B Base</td><td nowrap>FP16</td><td nowrap>6,9946</td><td nowrap>-</td><td nowrap>15,41</td><td nowrap>11,4</td></tr>
+<tr><td nowrap></td><td nowrap>INT8</td><td nowrap>7,0299</td><td nowrap>+0,5%</td><td nowrap>9,23</td><td nowrap>15,3</td></tr>
+<tr><td nowrap></td><td nowrap>GPTQ 4b</td><td nowrap>7,3008</td><td nowrap>+4,4%</td><td nowrap>5,81</td><td nowrap>33,0</td></tr>
+<tr><td nowrap></td><td nowrap>AWQ 4b</td><td nowrap>7,9623</td><td nowrap>+13,8%</td><td nowrap>5,84</td><td nowrap>32,9</td></tr></table>
+<h2>2. Resultados negativos e limites (registrados no diário do grupo)</h2>
+<ul>
+<li><b>Meta de 4 GB de VRAM não atingida:</b> o menor pico foi 5,46 GiB (Llama, GPTQ); só os pesos de um 8B em INT4 já ocupam cerca de 5 GiB.</li>
+<li><b>Limiar de 3%:</b> nenhum INT4 ficou abaixo (o melhor foi +4,4%). Tratamos o 3% como referência de interpretação.</li>
+<li><b>AWQ no Qwen3 (+13,8%) pior que o GPTQ (+4,4%):</b> descartamos a calibração (blocos de 2048: diferença máx. 0,2%) e o zero-point (AWQ simétrico: 7,9620 contra 7,9623). O padrão aparece na literatura (Zheng et al., 2025: GPTQ +3,3% e AWQ +16,0% no Qwen3-8B-Base, g128). Causa dentro do algoritmo não isolada.</li>
+<li>INT8 tem TTFT pior que o FP16 (dequantização no prefill), mas gera mais rápido.</li>
+</ul>
+<h2>3. Decisões que precisamos do senhor</h2>
+<ol>
+<li><b>Calibração em C4.</b> Para não calibrar no corpus de avaliação, usamos 128 documentos do C4 (allenai/c4), em vez do WikiText-2. É um dataset além do escopo aprovado. Podemos manter?</li>
+<li><b>Qwen3 Base ou Instruct.</b> Usamos o Base (perplexidade mede modelagem de linguagem). O escopo diz apenas "Qwen 3". Mantemos o Base ou medimos também o Instruct?</li>
+<li><b>Meta de 4 GB.</b> Tratamos como resultado negativo documentado. De acordo, ou prefere que se tente outra configuração (ex.: grupo maior, outro bitwidth)?</li>
+<li><b>AWQ no Qwen3.</b> Como o padrão coincide com a literatura, registramos como limitação ou vale testar outra implementação de AWQ?</li>
+</ol>
+<h2>4. Próximos passos até o fim</h2>
+<ul><li>Medição em hardware de consumo (Avell e notebook do João Paulo).</li><li>Análise estatística das séries (Jean) e repositório (31/10).</li><li>Redação: Método em rascunho; Resultados a seguir.</li></ul>
+</body></html>

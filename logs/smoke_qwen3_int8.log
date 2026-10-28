@@ -1,0 +1,22 @@
+W1020 18:42:15.967000 3926377 .venv-quant/lib/python3.12/site-packages/torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+W1020 18:42:15.983000 3926377 .venv-quant/lib/python3.12/site-packages/torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   0%|          | 1/399 [00:00<00:49,  8.05it/s]Loading weights:   1%|          | 2/399 [00:00<00:48,  8.12it/s]Loading weights:   8%|▊         | 31/399 [00:00<00:03, 122.36it/s]Loading weights:  16%|█▌        | 64/399 [00:00<00:01, 196.51it/s]Loading weights:  24%|██▎       | 94/399 [00:00<00:01, 230.81it/s]Loading weights:  30%|██▉       | 119/399 [00:00<00:01, 230.76it/s]Loading weights:  36%|███▌      | 143/399 [00:01<00:03, 68.36it/s] Loading weights:  40%|████      | 160/399 [00:02<00:05, 40.56it/s]Loading weights:  43%|████▎     | 173/399 [00:02<00:05, 41.84it/s]Loading weights:  48%|████▊     | 192/399 [00:03<00:06, 31.68it/s]Loading weights:  53%|█████▎    | 210/399 [00:04<00:05, 35.19it/s]Loading weights:  56%|█████▌    | 224/399 [00:04<00:06, 26.68it/s]Loading weights:  59%|█████▉    | 237/399 [00:05<00:04, 32.80it/s]Loading weights:  68%|██████▊   | 270/399 [00:05<00:02, 56.81it/s]Loading weights:  75%|███████▌  | 301/399 [00:06<00:02, 46.14it/s]Loading weights:  80%|████████  | 320/399 [00:06<00:01, 47.96it/s]Loading weights:  84%|████████▎ | 334/399 [00:07<00:01, 34.32it/s]Loading weights:  92%|█████████▏| 367/399 [00:08<00:00, 34.81it/s]Loading weights:  99%|█████████▉| 395/399 [00:08<00:00, 48.84it/s]Loading weights: 100%|██████████| 399/399 [00:08<00:00, 48.05it/s]
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
+{
+ "model": "models/Qwen3-8B-Base",
+ "dtype": "float16",
+ "quant": "int8",
+ "ctx": 2048,
+ "windows": 8,
+ "tokens_scored": 16376,
+ "ppl": 6.0275,
+ "seconds": 8.7,
+ "seed": 0,
+ "peak_mem_gb": 11.72,
+ "gpu": "NVIDIA GB10",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "dataset": "wikitext-2-raw-v1/test",
+ "ts": "2026-10-20 18:42:37"
+}

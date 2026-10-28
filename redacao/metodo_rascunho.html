@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Rascunho do Método</title>
+<style>
+body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify}
+h1{font-size:14pt;text-transform:uppercase} h2{font-size:12pt;font-weight:bold}
+table{border-collapse:collapse;margin:8px 0;font-size:10.5pt} td,th{border:1px solid #000;padding:3px 6px}
+.nota{font-size:10.5pt} .pend{background:#fff2a8}
+</style></head><body>
+
+<p class="nota"><b>RASCUNHO para revisão de João Vitor.</b> Trechos em amarelo (<span class="pend">[PENDENTE]</span>, <span class="pend">[CONFIRMAR]</span>) dependem de medição em andamento ou de conferência de fonte. Não contém resultados: eles ficam no capítulo de Resultados. Formatação ABNT e template do Gate 5 ainda não aplicados (template pendente com a organização).</p>
+
+<h1>3 Método</h1>
+
+<h2>3.1 Visão geral</h2>
+<p>Este trabalho compara, de forma controlada, três esquemas de quantização pós-treino (<i>post-training quantization</i>, PTQ) de pesos aplicados a dois modelos de linguagem de 8 bilhões de parâmetros, tomando como referência o próprio modelo em meia precisão (FP16). A comparação considera duas dimensões: a <b>qualidade</b>, medida pela perplexidade no WikiText-2, e o <b>custo de execução</b>, medido por tamanho em disco, memória de pico, tempo até o primeiro <i>token</i> (TTFT) e vazão de decodificação. Não há ajuste fino (<i>fine-tuning</i>) nem conjunto de dados próprio: os pesos originais são apenas arredondados para menos bits.</p>
+
+<h2>3.2 Modelos</h2>
+<p>Foram usados o Llama 3 8B (<i>meta-llama/Meta-Llama-3-8B</i>), cuja descrição consta em Grattafiori et al. (2024), e o Qwen3-8B-Base (<i>Qwen/Qwen3-8B-Base</i>), descrito em Yang et al. (2025). Em ambos os casos adotou-se a variante <b>base</b> (sem ajuste por instruções), por ser a mais adequada à avaliação de modelagem de linguagem por perplexidade. <span class="pend">[CONFIRMAR com o orientador: o escopo cita “Qwen 3” sem especificar Base ou Instruct.]</span> Os <i>checkpoints</i> originais são publicados em bfloat16; para a linha de base, os pesos foram carregados em float16, de modo que o FP16 aqui reportado resulta dessa conversão no carregamento.</p>
+
+<h2>3.3 Esquemas de quantização</h2>
+<p>Todos os esquemas quantizam apenas os pesos (<i>weight-only</i>); as ativações permanecem em FP16. A Tabela 1 resume as configurações.</p>
+<table>
+<tr><th>Esquema</th><th>Bits</th><th>Ferramenta (versão)</th><th>Calibração</th><th>Particularidades</th></tr>
+<tr><td>FP16 (referência)</td><td>16</td><td>transformers 5.17.0</td><td>–</td><td>Pesos convertidos de bfloat16 no carregamento</td></tr>
+<tr><td>INT8 (LLM.int8)</td><td>8</td><td>bitsandbytes 0.50.2</td><td>Não usa</td><td>Quantização vetorial com tratamento de <i>outliers</i> em FP16 (Dettmers et al., 2022); artefato salvo em disco</td></tr>
+<tr><td>INT4 GPTQ</td><td>4</td><td>gptqmodel 7.6.0</td><td>C4, 128 documentos</td><td>Grupo de 128, simétrico, <i>desc_act</i>=falso; kernel Marlin</td></tr>
+<tr><td>INT4 AWQ</td><td>4</td><td>gptqmodel 7.6.0 (método <i>awq</i>)</td><td>C4, 128 documentos</td><td>Grupo de 128, assimétrico (com <i>zero-point</i>); kernel Marlin</td></tr>
+</table>
+<p class="nota">Tabela 1 – Configurações avaliadas (dois modelos × quatro esquemas = oito configurações).</p>
+
+<p><b>LLM.int8().</b> Realiza a multiplicação de matrizes em 8 bits por vetor e separa as poucas dimensões de ativação com valores atípicos muito grandes, que são tratadas em 16 bits (Dettmers et al., 2022). Não requer dados de calibração.</p>
+<p><b>GPTQ.</b> Quantiza cada camada minimizando o erro da saída da camada, e não o erro do peso isolado, usando informação de segunda ordem (a matriz Hessiana das entradas) e compensando, nas colunas ainda não quantizadas, o erro introduzido pelas já quantizadas (Frantar et al., 2022).</p>
+<p><b>AWQ.</b> Parte da observação de que uma pequena fração dos pesos é mais relevante e de que sua importância é indicada pela magnitude das <b>ativações</b>; escalona-se por canal os pesos relevantes antes da quantização, com a escala buscada em dados de calibração (Lin et al., 2023). A implementação usada é o porte do algoritmo existente no gptqmodel, e não o código dos autores. <span class="pend">[CONFIRMAR equivalência com a implementação original.]</span></p>
+<p>Os dois esquemas de 4 bits foram executados pela mesma biblioteca e pelo mesmo carregador, com o mesmo formato de armazenamento e o mesmo kernel de multiplicação (Marlin; Frantar et al., 2025), de modo que diferenças de qualidade entre eles decorrem do algoritmo e da calibração, e não da infraestrutura. Uma segunda implementação de AWQ, a do <i>llmcompressor</i>, foi instalada e descartada porque, na versão disponível, produz o formato <i>compressed-tensors</i>, que pode ser executado no <i>transformers</i> sem kernel de 4 bits dedicado, o que distorceria as medidas de tempo e memória.</p>
+
+<h2>3.4 Dados de calibração</h2>
+<p>O GPTQ e o AWQ precisam de amostras de texto para estimar quais pesos importam. Foi usado o <i>Colossal Clean Crawled Corpus</i> (C4) (Raffel et al., 2020), em inglês, derivado do Common Crawl e filtrado por heurísticas (Dodge et al., 2021). A escolha segue o artigo do GPTQ e evita um vazamento: calibrar no WikiText-2 exporia à quantização o conjunto de teste e tornaria a perplexidade artificialmente favorável. O C4 não é usado em nenhuma métrica.</p>
+<p>Utilizou-se o primeiro <i>shard</i> do conjunto de treino (<i>en/c4-train.00000-of-01024</i>), embaralhado com semente 0; foram tomados os 128 primeiros documentos com pelo menos 8.000 caracteres. A biblioteca recebeu os documentos inteiros, ordenados por tamanho e sem concatenação em blocos fixos, o que totalizou 386.925 <i>tokens</i> no Qwen3-8B-Base (cerca de 3.000 por documento). Isso <b>difere do protocolo original do GPTQ</b>, que usa 128 segmentos aleatórios de 2.048 <i>tokens</i> (cerca de 262 mil). O efeito dessa diferença é investigado em uma análise de sensibilidade com os mesmos 128 documentos reempacotados em blocos de 2.048 <i>tokens</i> <span class="pend">[PENDENTE: resultado]</span>. A escolha do C4, por ser um conjunto além do escopo inicialmente acordado, foi submetida à validação do orientador <span class="pend">[PENDENTE: checkpoint de 30/10]</span>.</p>
+
+<h2>3.5 Métrica de qualidade: perplexidade</h2>
+<p>A perplexidade é a exponencial da perda média por <i>token</i> (entropia cruzada). Foi calculada no conjunto de teste do <i>wikitext-2-raw-v1</i> (Merity et al., 2016): os textos foram unidos por quebras de linha duplas, tokenizados de uma vez com o tokenizador de cada modelo e divididos em janelas de 2.048 <i>tokens</i> sem sobreposição; cada <i>token</i> é previsto a partir dos anteriores da mesma janela, e a perda é acumulada sobre todos os <i>tokens</i> previstos. Esse procedimento é o adotado nos artigos do GPTQ e do AWQ. Resultam 141 janelas para o Llama 3 e 146 para o Qwen3, pois os tokenizadores diferem. A perplexidade é, portanto, por <i>token</i>, e <b>não é comparável</b> com a perplexidade por palavra (<i>word perplexity</i>) reportada pelo <i>lm-evaluation-harness</i> <span class="pend">[PENDENTE: executar o harness como verificação cruzada]</span>.</p>
+<p>Como verificação do procedimento, as linhas de base FP16 obtidas (6,14 no Llama 3 8B e 6,99 no Qwen3-8B-Base) coincidem com os valores publicados para esse protocolo (aproximadamente 6,1 e 6,99). A variação relativa de cada configuração é calculada sempre contra o FP16 do mesmo modelo. O limiar de 3% de degradação é tratado apenas como referência de interpretação, não como critério de aceitação, pois a literatura reporta degradações de INT4 de aproximadamente 6 a 8% para o Llama 3 8B (GPTQ e AWQ, grupo 128; Huang et al., 2024) e 3 a 16% para o Qwen3-8B-Base (GPTQ e AWQ, grupo 128; Zheng et al., 2025).</p>
+
+<h2>3.6 Métricas de custo</h2>
+<p>Todas as medidas de custo usam <i>batch</i> de tamanho 1, decodificação gulosa (determinística) e o mesmo <i>prompt</i>, formado pelos primeiros 512 <i>tokens</i> da partição de validação do WikiText-2. Foram geradas 128 novos <i>tokens</i>, com geração forçada ao comprimento fixo. Cada configuração foi medida em 10 repetições, após 3 repetições de aquecimento descartadas, com semente 0.</p>
+<ul>
+<li><b>Disco:</b> soma dos arquivos de pesos do artefato (<i>safetensors</i>), em GiB; para os esquemas quantizados, é o artefato salvo após a quantização.</li>
+<li><b>Memória de pico:</b> pico de <i>torch.cuda.max_memory_allocated</i> durante a geração, que inclui pesos, <i>cache</i> de chaves e valores e ativações, mas não o transiente de carga do modelo. Como a memória do equipamento é unificada, o <i>nvidia-smi</i> não a separa. O pico reservado pelo alocador (<i>max_memory_reserved</i>) é registrado nas réplicas posteriores.</li>
+<li><b>TTFT:</b> tempo de uma geração de um único <i>token</i> a partir do <i>prompt</i> de 512 <i>tokens</i>, em milissegundos.</li>
+<li><b>Vazão de decodificação:</b> (N−1)/(t<sub>N</sub>−t<sub>1</sub>), em <i>tokens</i> por segundo, em que t<sub>1</sub> e t<sub>N</sub> são os tempos de gerar 1 e N=128 <i>tokens</i>. Por usar a diferença de duas medições, o ruído da etapa de preenchimento não se cancela por completo; repetições com t<sub>N</sub> ≤ t<sub>1</sub> seriam descartadas e contadas.</li>
+</ul>
+<p>Cada métrica é resumida pela mediana e pelo intervalo interquartil (IQR), medidas robustas a picos isolados. A comparação estatística entre configurações usará testes não paramétricos (Kruskal-Wallis com Mann-Whitney corrigido para comparações múltiplas e tamanho de efeito) <span class="pend">[PENDENTE: análise do Jean]</span>. Uma série de 10 repetições por configuração representa uma sessão de medição; réplicas independentes (r2 e r3) foram agendadas para reduzir a dependência de uma única sessão <span class="pend">[PENDENTE: resultado]</span>.</p>
+
+<h2>3.7 Ambiente experimental</h2>
+<p>Os experimentos foram executados em um NVIDIA DGX Spark (GPU GB10, arquitetura Blackwell; CPU Arm aarch64; 128 GB de memória unificada), com CUDA 13.0, Python 3.12.13, PyTorch 2.14.0+cu130 e <i>transformers</i> 5.17.0. As linhas de base foram medidas em 28 e 29 de setembro de 2026 e as configurações quantizadas em 20 de outubro de 2026. O equipamento é compartilhado: outros processos (servidor de transcrição de áudio, servidor de modelos e um processo Python de terceiros) ocupavam a GPU em parte das medições. Esses processos são registrados, a cada medição, no arquivo de resultado (campo <i>gpu_other_procs_before</i>), assim como temperatura, <i>clock</i> e motivo de <i>throttling</i> da GPU. Os tempos absolutos, portanto, valem para essa plataforma, e a generalização para GPUs de consumo será verificada em duas máquinas adicionais <span class="pend">[PENDENTE: bancada do Avell e do notebook do João Paulo]</span>.</p>
+
+<h2>3.8 Reprodutibilidade e registro</h2>
+<p>Todos os <i>scripts</i> (cálculo de perplexidade, medição de custo e quantização), os resultados brutos em JSON (incluindo as listas de todas as repetições) e um diário cronológico das tentativas, inclusive as que falharam, são mantidos no repositório do grupo <span class="pend">[PENDENTE: publicar repositório – Jean, 31/10]</span>. Falhas de instalação e de execução (pacote <i>optimum</i> ausente, compilação do kernel Marlin sem Ninja nem <i>nvcc</i> no caminho) estão registradas como parte dos resultados do trabalho, pois condicionam a viabilidade prática dos métodos na plataforma estudada.</p>
+
+<h2>3.9 Ameaças à validade</h2>
+<ul>
+<li><b>Calibração:</b> o protocolo difere do original (documentos inteiros em vez de blocos de 2.048 <i>tokens</i>) e usa 128 amostras; a biblioteca recomenda mais de 256. O AWQ original calibra em outro corpus (Pile). A análise de sensibilidade quantifica parte desse efeito.</li>
+<li><b>Implementação:</b> o AWQ é um porte; a degradação maior observada no Qwen3, em relação ao GPTQ, pode refletir a implementação e não o algoritmo.</li>
+<li><b>Plataforma:</b> as medidas de tempo dependem do kernel disponível na plataforma (aarch64, CUDA 13) e da carga concorrente na GPU.</li>
+<li><b>Métrica:</b> a perplexidade mede fidelidade de modelagem de linguagem, não desempenho em tarefas; é proxy da qualidade.</li>
+<li><b>Linha de base:</b> o FP16 resulta da conversão de bfloat16; diferenças de arredondamento entre as duas representações não foram isoladas.</li>
+<li><b>Amostra:</b> dois modelos e uma plataforma principal; as conclusões não se estendem a outras famílias ou tamanhos.</li>
+</ul>
+
+<h2>Referências (rascunho; conferidas nas fontes em 21/10/2026, páginas de Dettmers e Lin não constam nas páginas oficiais)</h2>
+<p>DETTMERS, Tim <i>et al.</i> LLM.int8(): 8-bit matrix multiplication for transformers at scale. <i>In</i>: ADVANCES IN NEURAL INFORMATION PROCESSING SYSTEMS (NeurIPS), 35., 2022. <b>Anais</b> [...]. 2022. arXiv:2208.07339. DOI 10.52202/068431-2198. <span class="pend">[A página oficial do NeurIPS não traz as páginas e lista o título como "GPT3.int8()"; a versão do arXiv usa "LLM.int8()". Decidir qual título citar; páginas só pelo PDF final]</span></p>
+<p>DODGE, Jesse et al. Documenting large webtext corpora: a case study on the Colossal Clean Crawled Corpus. In: CONFERENCE ON EMPIRICAL METHODS IN NATURAL LANGUAGE PROCESSING, 2021, Punta Cana. <b>Proceedings</b> [...]. Stroudsburg: Association for Computational Linguistics, 2021. p. 1286-1305. DOI 10.18653/v1/2021.emnlp-main.98.</p>
+<p>GRATTAFIORI, Aaron <i>et al.</i> The Llama 3 herd of models. <b>arXiv</b>, 2407.21783, 2024.</p>
+<p>FRANTAR, Elias et al. GPTQ: accurate post-training quantization for generative pre-trained transformers. <b>arXiv</b>, 2210.17323, 2022.</p>
+<p>FRANTAR, Elias <i>et al.</i> MARLIN: mixed-precision auto-regressive parallel inference on large language models. <i>In</i>: ACM SIGPLAN SYMPOSIUM ON PRINCIPLES AND PRACTICE OF PARALLEL PROGRAMMING (PPoPP), 30., 2025, Las Vegas. <b>Proceedings</b> [...]. New York: ACM, 2025. p. 239-251. DOI 10.1145/3710848.3710871. arXiv:2408.11743.</p>
+<p>HUANG, Wei <i>et al.</i> An empirical study of LLaMA3 quantization: from LLMs to MLLMs. <b>Visual Intelligence</b>, v. 2, art. 36, 2024. DOI 10.1007/s44267-024-00070-x. arXiv:2404.14047.</p>
+<p>LIN, Ji <i>et al.</i> AWQ: activation-aware weight quantization for on-device LLM compression and acceleration. <b>Proceedings of Machine Learning and Systems</b>, v. 6, 2024. arXiv:2306.00978. <span class="pend">[A página oficial do MLSys não traz as páginas; confirmar no PDF final ou omitir]</span></p>
+<p>MERITY, Stephen et al. Pointer sentinel mixture models. <b>arXiv</b>, 1609.07843, 2016.</p>
+<p>RAFFEL, Colin et al. Exploring the limits of transfer learning with a unified text-to-text transformer. <b>Journal of Machine Learning Research</b>, v. 21, n. 140, p. 1-67, 2020.</p>
+<p>YANG, An <i>et al.</i> Qwen3 technical report. <b>arXiv</b>, 2505.09388, 2025.</p>
+<p>ZHENG, Xingyu <i>et al.</i> An empirical study of Qwen3 quantization. <b>arXiv</b>, 2505.02214, 2025.</p>
+</body></html>
