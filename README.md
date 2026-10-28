@@ -11,4 +11,5 @@ Especialização GenAI (UFG/AKCIT). Compara FP16, INT8 (LLM.int8()), INT4 GPTQ e
 | `redacao/` | Rascunhos de Método e Resultados |
 | `guia/` | Guia de estudo, glossário de decisões, perguntas de banca |
 | `gate3/` | Roteiro do Gate 3 |
+| `reunioes/` | Resumo e transcrição das reuniões e aulas do TCC (índice no README da pasta) |
 | `berg/` | Resumo de checkpoint (material interno) |
