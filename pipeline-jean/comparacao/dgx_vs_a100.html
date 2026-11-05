@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PTQ 8B — DGX vs A100</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #fbfaf6; --ink: #171716; --muted: #6b6964; --faint: #94918a;
+    --rule: #d9d6cd; --rule-strong: #b7b2a6; --accent: #a86b26; --accent-weak: #e6d7bd;
+    --ok: #4a7a3e; --bad: #a53a2a;
+    --family-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --family-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141412; --surface: #1b1a17; --ink: #eceae4; --muted: #a09d94; --faint: #6f6c64;
+      --rule: #2a2825; --rule-strong: #3b3833; --accent: #d58a46; --accent-weak: #4a3822;
+      --ok: #7fa96c; --bad: #c56758; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141412; --surface: #1b1a17; --ink: #eceae4; --muted: #a09d94; --faint: #6f6c64;
+    --rule: #2a2825; --rule-strong: #3b3833; --accent: #d58a46; --accent-weak: #4a3822;
+    --ok: #7fa96c; --bad: #c56758; color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--family-sans); font-weight: 400; line-height: 1.55; margin: 0; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1100px; margin: 0 auto; padding-inline: 24px; padding-block: 48px 72px; display: flex; flex-direction: column; gap: 48px; }
+  @media (max-width: 540px) { .page { padding-inline: 16px; padding-block: 32px 56px; gap: 36px; } }
+  .eyebrow { font-family: var(--family-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  h1 { font-family: var(--family-serif); font-weight: 500; font-size: clamp(32px, 5vw, 46px); line-height: 1.08; letter-spacing: -0.01em; text-wrap: balance; margin: 0 0 14px; }
+  h1 em { font-style: italic; color: var(--accent); font-weight: 500; }
+  .lede { font-size: 17px; line-height: 1.55; color: var(--muted); max-width: 68ch; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 500; }
+  h2 { font-weight: 500; font-size: 22px; letter-spacing: -0.005em; margin: 0 0 18px; text-wrap: balance; }
+  h3 { font-weight: 500; font-size: 15px; margin: 0 0 12px; }
+  p { margin: 0 0 10px; }
+  code { font-family: var(--family-mono); font-size: 12.5px; }
+  .section-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
+  .section-head h2 { margin-bottom: 6px; }
+  .section-head p { margin: 0; font-size: 14px; color: var(--muted); max-width: 72ch; }
+
+  .context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 720px) { .context { grid-template-columns: 1fr; } }
+  .context-card { background: var(--surface); border: 1px solid var(--rule); padding: 20px 22px; border-radius: 2px; }
+  .context-card .k { font-family: var(--family-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+  .context-card .v { font-size: 14px; line-height: 1.5; }
+  .context-card .v strong { font-weight: 500; }
+  .context-card.dgx { border-left: 3px solid var(--rule-strong); }
+  .context-card.a100 { border-left: 3px solid var(--ok); }
+  .same { margin-top: 14px; padding: 14px 18px; border: 1px dashed var(--rule-strong); border-radius: 2px; font-size: 13.5px; color: var(--muted); }
+  .same strong { color: var(--ink); font-weight: 500; }
+
+  .highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 720px) { .highlights { grid-template-columns: 1fr; } }
+  .hl { padding: 18px 20px; border: 1px solid var(--rule); border-radius: 2px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
+  .hl .tag { font-family: var(--family-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .hl .headline { font-weight: 500; font-size: 15px; line-height: 1.4; }
+  .hl .body { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+  .model-block { display: flex; flex-direction: column; gap: 18px; }
+  .model-block .model-name { font-family: var(--family-serif); font-size: 24px; font-weight: 500; margin: 0; }
+  .model-sub { font-family: var(--family-mono); font-size: 12px; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .pair { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; min-width: 0; }
+  .panel-head { padding: 12px 16px 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--rule); background: color-mix(in srgb, var(--surface) 70%, var(--bg) 30%); }
+  .panel-head .who { font-size: 13px; font-weight: 500; }
+  .panel.dgx .who::before { content: "— "; color: var(--rule-strong); }
+  .panel.a100 .who::before { content: "— "; color: var(--ok); }
+  .panel-head .meta { font-family: var(--family-mono); font-size: 11px; color: var(--muted); }
+  .table-wrap { overflow-x: auto; }
+  table.cmp { width: 100%; border-collapse: collapse; font-family: var(--family-mono); font-feature-settings: "tnum" 1; font-size: 12.5px; }
+  table.cmp th { text-align: right; font-family: var(--family-sans); font-weight: 500; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 10px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  table.cmp th:first-child { text-align: left; }
+  table.cmp td { padding: 9px 10px; border-bottom: 1px solid var(--rule); text-align: right; vertical-align: baseline; }
+  table.cmp td:first-child { text-align: left; font-family: var(--family-sans); font-weight: 500; font-size: 12.5px; }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp tr.fp16 td { color: var(--muted); }
+  table.cmp .delta, table.cmp .iqr { display: block; font-size: 10.5px; color: var(--faint); margin-top: 2px; }
+  table.cmp .delta.pos { color: var(--bad); } table.cmp .delta.neg { color: var(--ok); }
+  table.cmp .delta.gain { color: var(--ok); } table.cmp .delta.loss { color: var(--bad); }
+  table.cmp .pareto { display: inline-block; font-size: 10.5px; padding: 2px 6px; border-radius: 2px; }
+  table.cmp .pareto.yes { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+  table.cmp .pareto.no { background: color-mix(in srgb, var(--bad) 10%, transparent); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent); }
+  .dom { display: block; font-size: 10px; color: var(--faint); margin-top: 3px; font-family: var(--family-sans); }
+
+  .tri-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); border-radius: 2px; }
+  table.tri { width: 100%; border-collapse: collapse; font-family: var(--family-mono); font-feature-settings: "tnum" 1; font-size: 12.5px; }
+  table.tri th, table.tri td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  table.tri thead th { font-family: var(--family-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  table.tri thead tr.grp th { text-align: center; color: var(--ink); border-bottom: 1px solid var(--rule-strong); }
+  table.tri th:first-child, table.tri td:first-child { text-align: left; font-family: var(--family-sans); font-weight: 500; color: var(--ink); }
+  table.tri .sep { border-left: 1px solid var(--rule); }
+  table.tri td.up { color: var(--ok); } table.tri td.dn { color: var(--bad); }
+  table.tri tr:last-child td { border-bottom: none; }
+  .stats-note { padding: 20px 22px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; font-size: 14px; color: var(--muted); line-height: 1.55; margin-top: 14px; }
+  .stats-note strong { color: var(--ink); font-weight: 500; }
+  .stats-note ul { margin: 10px 0 0; padding-left: 18px; }
+  .stats-note li { margin-bottom: 4px; }
+
+  .methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 720px) { .methods { grid-template-columns: 1fr; } }
+  .method { padding: 20px 22px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; display: flex; flex-direction: column; gap: 10px; }
+  .method-head { display: flex; align-items: baseline; gap: 12px; margin: 0; }
+  .method-num { font-family: var(--family-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--accent); min-width: 20px; }
+  .method h3 { margin: 0; font-size: 16px; }
+  .method-q { font-family: var(--family-serif); font-style: italic; font-size: 13.5px; color: var(--accent); margin: 0; }
+  .method p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin: 0; }
+  .method p strong { color: var(--ink); font-weight: 500; }
+  .method code, .conc code, .hyp-obs code, .hyp-c p code, .hyp-action code { background: var(--bg); padding: 1px 4px; border-radius: 2px; color: var(--ink); font-size: 12px; }
+
+  .conclusions { display: flex; flex-direction: column; gap: 14px; }
+  .conc { display: grid; grid-template-columns: 40px 1fr; gap: 18px; padding: 20px 22px; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 2px; align-items: start; }
+  @media (max-width: 560px) { .conc { grid-template-columns: 1fr; gap: 10px; } }
+  .conc-tag { font-family: var(--family-serif); font-size: 32px; font-style: italic; color: var(--accent); line-height: 1; opacity: 0.8; }
+  .conc h3 { font-size: 16px; margin: 0 0 8px; }
+  .conc p { font-size: 14px; color: var(--muted); line-height: 1.6; margin: 0; }
+  .conc p strong { color: var(--ink); font-weight: 500; }
+
+  .hypothesis { padding: 24px 24px 22px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; margin-bottom: 16px; }
+  .hypothesis:last-child { margin-bottom: 0; }
+  .hyp-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+  .hyp-num { font-family: var(--family-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; color: var(--accent); padding: 3px 7px; border: 1px solid var(--accent); border-radius: 2px; background: var(--accent-weak); flex-shrink: 0; }
+  .hyp-head h3 { font-family: var(--family-serif); font-weight: 500; font-size: 20px; margin: 0; line-height: 1.3; }
+  .hyp-obs { font-size: 14px; color: var(--muted); line-height: 1.6; margin: 0 0 16px; }
+  .hyp-obs strong { color: var(--ink); font-weight: 500; }
+  .hyp-cands { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .hyp-c { padding: 14px 16px; background: var(--bg); border: 1px solid var(--rule); border-radius: 2px; }
+  .hyp-c-tag { display: inline-block; font-family: var(--family-mono); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; margin-bottom: 8px; color: var(--accent); background: var(--accent-weak); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .hyp-c strong { display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; }
+  .hyp-c p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin: 0; }
+  .hyp-action { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin: 0; padding: 14px 16px; border-left: 2px solid var(--accent); background: color-mix(in srgb, var(--accent-weak) 50%, transparent); }
+  .hyp-action strong { color: var(--ink); font-weight: 500; }
+  footer { font-family: var(--family-mono); font-size: 11.5px; color: var(--faint); border-top: 1px solid var(--rule); padding-top: 20px; line-height: 1.6; }
+  footer code { background: var(--surface); padding: 1px 5px; border-radius: 2px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <header>
+    <p class="eyebrow">Etapa 6 · réplica de hardware</p>
+    <h1>Mesmo código, <em>duas GPUs</em></h1>
+    <p class="lede">
+      Os scripts do colega (quantização, perplexidade, custo) rodados <strong>sem nenhuma alteração</strong> em dois hardwares: o <strong>DGX Spark (GB10)</strong>, onde ele mediu, e uma <strong>A100 de 40 GB no Colab</strong>. Mesmos modelos (Qwen3-8B-Base e Meta-Llama-3-8B), mesmas quatro precisões (FP16, INT8, INT4-AWQ, INT4-GPTQ), mesmo protocolo de PPL, mesmo n. Só muda a GPU. O que mudar entre as duas colunas é hardware; o que não mudar é do método.
+    </p>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <h2>As duas bancadas</h2>
+      <p>Os modelos INT8, AWQ e GPTQ foram quantizados de novo em cada máquina, com a mesma calibração (C4, 128 documentos, seed 0).</p>
+    </div>
+    <div class="context">
+      <div class="context-card dgx">
+        <span class="k">DGX Spark · original do colega</span>
+        <div class="v"><strong>GPU NVIDIA GB10</strong>, memória unificada LPDDR5X (~273 GB/s). Medido pelo colega. torch 2.14, transformers 5.17, Python 3.12. Outros processos usavam a GPU durante parte das medições (registrado no diário dele).</div>
+      </div>
+      <div class="context-card a100">
+        <span class="k">Colab A100 · réplica</span>
+        <div class="v"><strong>GPU NVIDIA A100-SXM4-40GB</strong>, HBM2e (~1,5 TB/s). Medido em 04/nov/2026. torch 2.11, transformers 5.22, Python 3.13. GPU sem outros processos.</div>
+      </div>
+    </div>
+    <p class="same"><strong>Igual nas duas:</strong> <code>ppl_wikitext2.py</code> (PPL token-level, janelas de 2048 sem sobreposição), <code>bench_cost.py</code> (prompt de 512 tokens, 3 aquecimentos, 10 repetições, saída gulosa), 3 rodadas por célula = <strong>n = 30</strong>, seed 0, FP16. <strong>Diferente além da GPU:</strong> versões de torch/transformers/Python (não controláveis no Colab).</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>O que a troca de GPU muda — e o que não muda</h2>
+      <p>Resumo das três leituras que as tabelas abaixo sustentam.</p>
+    </div>
+    <div class="highlights">
+      <div class="hl">
+        <span class="tag">não muda</span>
+        <div class="headline">A qualidade (PPL) não depende da GPU.</div>
+        <div class="body">FP16 Llama: 6,1359 no DGX × 6,1358 na A100. Em 8 células, a maior diferença é 0,78% (GPTQ Llama); as demais ficam em 0,3% ou menos. Só o INT8 passa em 3%.</div>
+      </div>
+      <div class="hl">
+        <span class="tag">não muda</span>
+        <div class="headline">A memória é a mesma, até a segunda casa.</div>
+        <div class="body">Diferença máxima de 0,03 GiB entre as GPUs nas 8 células. INT8 economiza 40–43% e INT4 62–64% frente ao FP16. A meta de 4 GB não é atingida: menor pico 5,44 GiB (A100) e 5,46 GiB (DGX).</div>
+      </div>
+      <div class="hl">
+        <span class="tag">muda tudo</span>
+        <div class="headline">Velocidade inverte entre as GPUs.</div>
+        <div class="body">No DGX, INT4 chega a +194% de tokens/s e INT8 a +36%. Na A100, o mesmo código dá −22% a −27% (INT4) e −72% a −73% (INT8). Na A100 o FP16 é o mais rápido.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="model-block">
+    <header class="section-head">
+      <h2 class="model-name">Qwen3-8B-Base</h2>
+      <span class="model-sub">mediana de n = 30 · Δ vs FP16 da própria GPU · memória = pico na geração</span>
+    </header>
+    <div class="pair">
+      <article class="panel dgx">
+        <header class="panel-head"><span class="who">DGX Spark (GB10)</span><span class="meta">n = 30 · token PPL</span></header>
+        <div class="table-wrap"><table class="cmp">
+          <thead><tr><th>Precisão</th><th>PPL</th><th>Mem (GiB)</th><th>TTFT (ms)</th><th>Tok/s</th><th>Pareto</th></tr></thead>
+          <tbody>
+            <tr class="fp16"><td>FP16</td><td>6,9946</td><td>15,41</td><td>162,79<span class="iqr">IQR 9,07</span></td><td>11,22<span class="iqr">IQR 0,27</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT8</td><td>7,03<span class="delta pos">+0,5%</span></td><td>9,22<span class="delta neg">−40%</span></td><td>221,62<span class="delta loss">+36%</span><span class="iqr">IQR 1,56</span></td><td>15,21<span class="delta gain">+36%</span><span class="iqr">IQR 0,19</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT4-AWQ</td><td>7,96<span class="delta pos">+13,8%</span></td><td>5,83<span class="delta neg">−62%</span></td><td>133,23<span class="delta gain">−18%</span><span class="iqr">IQR 0,68</span></td><td>32,87<span class="delta gain">+193%</span><span class="iqr">IQR 0,41</span></td><td><span class="pareto no">Dominada</span><span class="dom">por INT4-GPTQ</span></td></tr>
+            <tr><td>INT4-GPTQ</td><td>7,30<span class="delta pos">+4,4%</span></td><td>5,81<span class="delta neg">−62%</span></td><td>131,49<span class="delta gain">−19%</span><span class="iqr">IQR 0,60</span></td><td>33,01<span class="delta gain">+194%</span><span class="iqr">IQR 0,21</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+          </tbody></table></div>
+      </article>
+      <article class="panel a100">
+        <header class="panel-head"><span class="who">Colab A100 (réplica)</span><span class="meta">n = 30 · token PPL</span></header>
+        <div class="table-wrap"><table class="cmp">
+          <thead><tr><th>Precisão</th><th>PPL</th><th>Mem (GiB)</th><th>TTFT (ms)</th><th>Tok/s</th><th>Pareto</th></tr></thead>
+          <tbody>
+            <tr class="fp16"><td>FP16</td><td>6,9945</td><td>15,39</td><td>62,06<span class="iqr">IQR 2,94</span></td><td>17,87<span class="iqr">IQR 0,38</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT8</td><td>7,03<span class="delta pos">+0,5%</span></td><td>9,20<span class="delta neg">−40%</span></td><td>261,51<span class="delta loss">+321%</span><span class="iqr">IQR 6,06</span></td><td>5,01<span class="delta loss">−72%</span><span class="iqr">IQR 0,14</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT4-AWQ</td><td>7,98<span class="delta pos">+14,1%</span></td><td>5,81<span class="delta neg">−62%</span></td><td>77,85<span class="delta loss">+25%</span><span class="iqr">IQR 1,25</span></td><td>13,56<span class="delta loss">−24%</span><span class="iqr">IQR 0,31</span></td><td><span class="pareto no">Dominada</span><span class="dom">por INT4-GPTQ</span></td></tr>
+            <tr><td>INT4-GPTQ</td><td>7,28<span class="delta pos">+4,1%</span></td><td>5,79<span class="delta neg">−62%</span></td><td>76,75<span class="delta loss">+24%</span><span class="iqr">IQR 1,19</span></td><td>13,94<span class="delta loss">−22%</span><span class="iqr">IQR 0,29</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+          </tbody></table></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="model-block">
+    <header class="section-head">
+      <h2 class="model-name">Meta-Llama-3-8B</h2>
+      <span class="model-sub">mediana de n = 30 · Δ vs FP16 da própria GPU · memória = pico na geração</span>
+    </header>
+    <div class="pair">
+      <article class="panel dgx">
+        <header class="panel-head"><span class="who">DGX Spark (GB10)</span><span class="meta">n = 30 · token PPL</span></header>
+        <div class="table-wrap"><table class="cmp">
+          <thead><tr><th>Precisão</th><th>PPL</th><th>Mem (GiB)</th><th>TTFT (ms)</th><th>Tok/s</th><th>Pareto</th></tr></thead>
+          <tbody>
+            <tr class="fp16"><td>FP16</td><td>6,1359</td><td>15,11</td><td>140,51<span class="iqr">IQR 11,62</span></td><td>13,57<span class="iqr">IQR 0,20</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT8</td><td>6,23<span class="delta pos">+1,5%</span></td><td>8,63<span class="delta neg">−43%</span></td><td>168,92<span class="delta loss">+20%</span><span class="iqr">IQR 0,93</span></td><td>18,14<span class="delta gain">+34%</span><span class="iqr">IQR 0,56</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT4-AWQ</td><td>6,72<span class="delta pos">+9,6%</span></td><td>5,49<span class="delta neg">−64%</span></td><td>122,30<span class="delta gain">−13%</span><span class="iqr">IQR 0,96</span></td><td>36,30<span class="delta gain">+167%</span><span class="iqr">IQR 0,20</span></td><td><span class="pareto no">Dominada</span><span class="dom">por INT4-GPTQ</span></td></tr>
+            <tr><td>INT4-GPTQ</td><td>6,68<span class="delta pos">+8,8%</span></td><td>5,46<span class="delta neg">−64%</span></td><td>121,06<span class="delta gain">−14%</span><span class="iqr">IQR 0,61</span></td><td>36,51<span class="delta gain">+169%</span><span class="iqr">IQR 0,22</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+          </tbody></table></div>
+      </article>
+      <article class="panel a100">
+        <header class="panel-head"><span class="who">Colab A100 (réplica)</span><span class="meta">n = 30 · token PPL</span></header>
+        <div class="table-wrap"><table class="cmp">
+          <thead><tr><th>Precisão</th><th>PPL</th><th>Mem (GiB)</th><th>TTFT (ms)</th><th>Tok/s</th><th>Pareto</th></tr></thead>
+          <tbody>
+            <tr class="fp16"><td>FP16</td><td>6,1358</td><td>15,09</td><td>48,84<span class="iqr">IQR 0,17</span></td><td>25,87<span class="iqr">IQR 0,52</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT8</td><td>6,23<span class="delta pos">+1,5%</span></td><td>8,61<span class="delta neg">−43%</span></td><td>208,88<span class="delta loss">+328%</span><span class="iqr">IQR 4,64</span></td><td>7,04<span class="delta loss">−73%</span><span class="iqr">IQR 0,14</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+            <tr><td>INT4-AWQ</td><td>6,73<span class="delta pos">+9,7%</span></td><td>5,46<span class="delta neg">−64%</span></td><td>70,61<span class="delta loss">+45%</span><span class="iqr">IQR 0,26</span></td><td>18,79<span class="delta loss">−27%</span><span class="iqr">IQR 0,26</span></td><td><span class="pareto no">Dominada</span><span class="dom">por INT4-GPTQ</span></td></tr>
+            <tr><td>INT4-GPTQ</td><td>6,62<span class="delta pos">+7,9%</span></td><td>5,44<span class="delta neg">−64%</span></td><td>69,70<span class="delta loss">+43%</span><span class="iqr">IQR 0,13</span></td><td>19,61<span class="delta loss">−24%</span><span class="iqr">IQR 0,45</span></td><td><span class="pareto yes">Pareto</span></td></tr>
+          </tbody></table></div>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Lado a lado: DGX × A100</h2>
+      <p>Cada linha compara a mesma célula nas duas GPUs. A razão A100/DGX de tokens/s mostra a inversão. A banda efetiva é uma estimativa: peso na GPU depois da carga (GiB × 1,0737) × tokens/s, ignorando KV cache e ativações.</p>
+    </div>
+    <div class="tri-wrap">
+      <table class="tri">
+        <thead>
+          <tr class="grp"><th></th><th colspan="3" class="sep">PPL</th><th colspan="3" class="sep">Tokens/s</th><th colspan="2" class="sep">TTFT (ms)</th><th colspan="2" class="sep">Banda efetiva (GB/s)</th></tr>
+          <tr><th>Modelo · precisão</th><th class="sep">DGX</th><th>A100</th><th>|Δ|</th><th class="sep">DGX</th><th>A100</th><th>A100/DGX</th><th class="sep">DGX</th><th>A100</th><th class="sep">DGX</th><th>A100</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Llama · FP16</td><td class="sep">6,1359</td><td>6,1358</td><td>0,00%</td><td class="sep">13,57</td><td>25,87</td><td class="up">1,91×</td><td class="sep">140,5</td><td>48,8</td><td class="sep">218</td><td>415</td></tr>
+          <tr><td>Llama · INT8</td><td class="sep">6,2278</td><td>6,2267</td><td>0,02%</td><td class="sep">18,14</td><td>7,04</td><td class="dn">0,39×</td><td class="sep">168,9</td><td>208,9</td><td class="sep">165</td><td>64</td></tr>
+          <tr><td>Llama · INT4-GPTQ</td><td class="sep">6,6754</td><td>6,6235</td><td>0,78%</td><td class="sep">36,51</td><td>19,61</td><td class="dn">0,54×</td><td class="sep">121,1</td><td>69,7</td><td class="sep">208</td><td>112</td></tr>
+          <tr><td>Llama · INT4-AWQ</td><td class="sep">6,7248</td><td>6,7338</td><td>0,13%</td><td class="sep">36,30</td><td>18,79</td><td class="dn">0,52×</td><td class="sep">122,3</td><td>70,6</td><td class="sep">208</td><td>108</td></tr>
+          <tr><td>Qwen3 · FP16</td><td class="sep">6,9946</td><td>6,9945</td><td>0,00%</td><td class="sep">11,22</td><td>17,87</td><td class="up">1,59×</td><td class="sep">162,8</td><td>62,1</td><td class="sep">184</td><td>293</td></tr>
+          <tr><td>Qwen3 · INT8</td><td class="sep">7,0299</td><td>7,0269</td><td>0,04%</td><td class="sep">15,21</td><td>5,01</td><td class="dn">0,33×</td><td class="sep">221,6</td><td>261,5</td><td class="sep">144</td><td>47</td></tr>
+          <tr><td>Qwen3 · INT4-GPTQ</td><td class="sep">7,3008</td><td>7,2795</td><td>0,29%</td><td class="sep">33,01</td><td>13,94</td><td class="dn">0,42×</td><td class="sep">131,5</td><td>76,8</td><td class="sep">200</td><td>85</td></tr>
+          <tr><td>Qwen3 · INT4-AWQ</td><td class="sep">7,9623</td><td>7,9838</td><td>0,27%</td><td class="sep">32,87</td><td>13,56</td><td class="dn">0,41×</td><td class="sep">133,2</td><td>77,9</td><td class="sep">200</td><td>83</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="stats-note">
+      <strong>Como ler.</strong>
+      <ul>
+        <li><strong>PPL:</strong> as duas colunas são praticamente a mesma. Diferenças vêm de requantizar do zero em cada máquina (GPTQ/AWQ), não da avaliação.</li>
+        <li><strong>Tokens/s:</strong> verde = A100 mais rápida (só FP16), vermelho = A100 mais lenta (INT8 e todo INT4).</li>
+        <li><strong>Banda efetiva:</strong> no DGX fica em ~200–220 GB/s para FP16 e INT4, perto do teto de ~273 GB/s da memória LPDDR5X. Na A100 fica em 83–112 GB/s para INT4, 5–7% do teto de ~1,5 TB/s. Ver H2.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Métodos estatísticos</h2>
+      <p>Testes não-paramétricos (nenhum assume normalidade), uma correção para comparações múltiplas e um critério geométrico para o trade-off. A aritmética é stdlib; <code>scipy</code> não é dependência.</p>
+    </div>
+    <div class="methods">
+      <article class="method">
+        <header class="method-head"><span class="method-num">01</span><h3>Mediana + IQR</h3></header>
+        <p class="method-q">O que resume cada célula.</p>
+        <p>Para TTFT e tokens/s: <strong>mediana</strong> e <strong>IQR</strong> (Q3 − Q1) sobre as 30 medidas (3 rodadas × 10 repetições). Imune a picos de throttling ou GC. PPL e memória são um valor por célula e ficam sem distribuição.</p>
+      </article>
+      <article class="method">
+        <header class="method-head"><span class="method-num">02</span><h3>Kruskal-Wallis</h3></header>
+        <p class="method-q">A métrica depende da precisão? (teste global)</p>
+        <p>Extensão do Mann-Whitney para <em>k</em> grupos. H0: as 4 precisões vêm da mesma distribuição. Rodado separadamente em cada GPU, por modelo e métrica. Observado: <code>p &lt; 10⁻¹⁷</code> nas duas GPUs, para TTFT e tokens/s (A100: <code>H ≈ 104–111</code>).</p>
+      </article>
+      <article class="method">
+        <header class="method-head"><span class="method-num">03</span><h3>Mann-Whitney U</h3></header>
+        <p class="method-q">Que par difere? Dois usos.</p>
+        <p><strong>(a)</strong> FP16 × cada quantizada, dentro de cada GPU. <strong>(b)</strong> DGX × A100 para a mesma célula: 8 células × 2 métricas = 16 comparações. Correção de empates aplicada. Observado: <code>U = 0</code> nas 16 comparações do uso (b), isto é, <strong>nenhuma</strong> medida do DGX se sobrepõe às da A100.</p>
+      </article>
+      <article class="method">
+        <header class="method-head"><span class="method-num">04</span><h3>Holm-Bonferroni</h3></header>
+        <p class="method-q">Corrige p-values para múltiplas comparações.</p>
+        <p>Ordena os p brutos e multiplica cada um por <code>k − i + 1</code>. Menos conservador que Bonferroni puro. Nas 16 comparações DGX × A100, <code>p_holm = 2,4×10⁻¹⁰</code> em todas.</p>
+      </article>
+      <article class="method">
+        <header class="method-head"><span class="method-num">05</span><h3>Tamanho de efeito</h3></header>
+        <p class="method-q">Significativo <em>e</em> grande?</p>
+        <p><code>r = |Z|/√N</code> (Cohen: 0,1/0,3/0,5) e <strong>Cliff's δ</strong> (ordinal, robusto a outliers). Observado nas 16 comparações entre GPUs: <code>r ≈ 0,86</code> e <code>|δ| = 1,0</code>, o máximo possível. O sinal de δ mostra quem é maior: DGX tem tokens/s maior em INT8 e INT4, A100 em FP16.</p>
+      </article>
+      <article class="method">
+        <header class="method-head"><span class="method-num">06</span><h3>Pareto frontier</h3></header>
+        <p class="method-q">Qual precisão vale manter?</p>
+        <p>Uma precisão é <strong>dominada</strong> se outra é melhor ou igual em PPL ↓, memória ↓ e tokens/s ↑, e estritamente melhor em ao menos um. Resultado idêntico nas duas GPUs: INT4-AWQ é dominada pelo INT4-GPTQ nos dois modelos.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Conclusões</h2>
+      <p>O que as duas bancadas sustentam, depois dos testes.</p>
+    </div>
+    <div class="conclusions">
+      <div class="conc"><span class="conc-tag">1</span><div>
+        <h3>Qualidade é propriedade do método, não da GPU. Só INT8 passa em 3%.</h3>
+        <p>INT8 fica entre +0,5% e +1,5% nas duas GPUs. Nenhum INT4 chega a 3%: o mais próximo é o GPTQ no Qwen3 (+4,4% DGX, +4,1% A100). O restante vai de +7,9% a +14,1%. O INT4-AWQ é o pior em todas as combinações.</p>
+      </div></div>
+      <div class="conc"><span class="conc-tag">2</span><div>
+        <h3>Memória é idêntica entre GPUs; a meta de 4 GB não é atingida.</h3>
+        <p>Diferença máxima de 0,03 GiB. Menor pico: <strong>5,44 GiB</strong> (Llama GPTQ, A100) e 5,46 GiB (DGX). INT4 economiza 62–64% e INT8 40–43% sobre o FP16. Este resultado deve constar no relatório como meta não atingida.</p>
+      </div></div>
+      <div class="conc"><span class="conc-tag">3</span><div>
+        <h3>Velocidade depende da GPU: a recomendação muda com o hardware alvo.</h3>
+        <p>No DGX, INT4 é 2,7–2,9× mais rápido que FP16 e INT8 ganha 34–36%. Na A100, o FP16 é o mais rápido e INT8/INT4 perdem 22–73%. O TTFT também inverte: a A100 faz o prefill do FP16 em um terço do tempo. Recomendar uma precisão sem conhecer a GPU é inseguro.</p>
+      </div></div>
+      <div class="conc"><span class="conc-tag">4</span><div>
+        <h3>As diferenças de velocidade são reais, mas medidas em uma sessão por GPU.</h3>
+        <p>As 16 comparações DGX × A100 não têm sobreposição (<code>U = 0</code>, <code>|δ| = 1</code>). Mas cada GPU foi medida uma vez, com versões de torch e transformers diferentes, e o DGX teve outros processos na GPU durante parte das medições. O teste prova que as GPUs diferem; não separa GPU de versão de software.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Hipóteses em aberto</h2>
+      <p>Duas perguntas que os números levantam e que ainda não têm teste.</p>
+    </div>
+
+    <article class="hypothesis">
+      <header class="hyp-head"><span class="hyp-num">H1</span><h3>Por que nenhum INT4 chega a 3%?</h3></header>
+      <p class="hyp-obs"><strong>Observação.</strong> Nas duas GPUs, nenhum INT4 passa. Melhor caso: GPTQ no Qwen3 (+4,4% e +4,1%). O AWQ no Qwen3 fica em +13,8% e +14,1%, reproduzido nas duas máquinas.</p>
+      <div class="hyp-cands">
+        <div class="hyp-c"><span class="hyp-c-tag">provável</span><strong>3% é um limiar de INT8, não de INT4 sem técnicas extras.</strong>
+          <p>A literatura (GPTQ, AWQ, QuaRot) relata +5% a +12% de PPL para modelos de 7–8B em INT4 puro, o que é compatível com o que medimos. Leitura da literatura, não medição nossa.</p></div>
+        <div class="hyp-c"><span class="hyp-c-tag">provável</span><strong>AWQ × Qwen3-Base é uma combinação ruim.</strong>
+          <p>O resultado se repete em duas GPUs e em duas quantizações independentes (+13,8% e +14,1%), então não é ruído. A causa (outliers de ativação em modelo Base) não foi testada.</p></div>
+        <div class="hyp-c"><span class="hyp-c-tag">medido</span><strong>A incerteza da requantização é de cerca de 1 ponto percentual.</strong>
+          <p>Quantizar de novo o GPTQ do Llama em outra máquina deu +8,8% e +7,9%: até 0,9 p.p. de diferença. É menor que a distância até 3%, então a conclusão não depende dela.</p></div>
+      </div>
+      <p class="hyp-action"><strong>Para o relatório.</strong> Reportar a meta de 3% como atingida só pelo INT8 e documentar o INT4 como trade-off qualidade × memória. Para tentar chegar perto de 3%: calibração maior, group size 64 ou <code>desc_act=True</code> (não testado).</p>
+    </article>
+
+    <article class="hypothesis">
+      <header class="hyp-head"><span class="hyp-num">H2</span><h3>Por que a ordem de velocidade inverte entre as GPUs?</h3></header>
+      <p class="hyp-obs"><strong>Observação.</strong> Na decodificação, cada token lê todos os pesos. No DGX, FP16 e INT4 usam ~200–220 GB/s de banda efetiva, perto do teto de ~273 GB/s da memória LPDDR5X, e o ganho do INT4 (2,7–2,9×) acompanha a redução de bytes (2,7–2,8×). Na A100, o FP16 usa 293–415 GB/s e o INT4 só 83–112 GB/s, de um teto de ~1,5 TB/s.</p>
+      <div class="hyp-cands">
+        <div class="hyp-c"><span class="hyp-c-tag">provável</span><strong>O DGX é limitado por banda; a A100 é limitada por overhead de kernel.</strong>
+          <p>Com banda baixa, ler menos bytes acelera, e o INT4 ganha. Com banda de sobra, o tempo por token passa a ser dominado por lançamento de kernels e pela dequantização, que o INT4 e o INT8 pagam e o FP16 não. Por isso o FP16 vence na A100.</p></div>
+        <div class="hyp-c"><span class="hyp-c-tag">provável</span><strong>O INT8 do bitsandbytes tem overhead próprio, pior na A100.</strong>
+          <p>A decomposição por outliers do LLM.int8 consome tempo nas duas GPUs (banda efetiva de 144–165 GB/s no DGX e só 47–64 GB/s na A100). O TTFT do INT8 cresce 4× na A100 frente ao FP16.</p></div>
+        <div class="hyp-c"><span class="hyp-c-tag">não controlado</span><strong>Versões de software e processos concorrentes.</strong>
+          <p>torch 2.14 × 2.11, transformers 5.17 × 5.22, Python 3.12 × 3.13, e outros processos na GPU do DGX. Podem contribuir e não dá para separar com estes dados.</p></div>
+      </div>
+      <p class="hyp-action"><strong>Como testar.</strong> Na A100, repetir a geração com batch maior: se o INT4 passar a ganhar do FP16 quando há mais trabalho por kernel, o gargalo é overhead de lançamento. Para isolar versões, repetir o DGX ou a A100 com o mesmo torch e transformers.</p>
+    </article>
+  </section>
+
+  <footer>
+    Scripts do colega (<code>joaov1tor/tcc-ptq-llms</code>) rodados sem alteração. DGX: <code>resultados/</code> do repositório dele. A100: Colab, 04/11/2026. Análise: <code>scripts/analyze_stats.py</code> · Etapa 6 do TCC · 2026-11-04.
+  </footer>
+
+</main>
+
+</body>
+</html>
