@@ -1,0 +1,17 @@
+{
+ "model": "models/Meta-Llama-3-8B",
+ "dtype": "float16",
+ "ctx": 2048,
+ "windows": 141,
+ "tokens_scored": 288627,
+ "ppl": 6.1359,
+ "seconds": 83.3,
+ "seed": 0,
+ "peak_mem_gb": 17.44,
+ "gpu": "NVIDIA GB10",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "dataset": "wikitext-2-raw-v1/test",
+ "ts": "2026-09-28 23:54:29"
+}

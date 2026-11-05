@@ -1,0 +1,17 @@
+{
+ "model": "models/Qwen3-8B-Base",
+ "dtype": "float16",
+ "ctx": 2048,
+ "windows": 146,
+ "tokens_scored": 298862,
+ "ppl": 6.9946,
+ "seconds": 100.1,
+ "seed": 0,
+ "peak_mem_gb": 18.19,
+ "gpu": "NVIDIA GB10",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "dataset": "wikitext-2-raw-v1/test",
+ "ts": "2026-09-28 23:05:26"
+}

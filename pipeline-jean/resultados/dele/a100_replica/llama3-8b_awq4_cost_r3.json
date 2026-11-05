@@ -1,0 +1,59 @@
+{
+ "model": "models/Meta-Llama-3-8B-awq4",
+ "dtype": "float16",
+ "quant": "pre",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 5.335,
+ "mem_after_load_gb": 5.335,
+ "peak_mem_gb": 5.462,
+ "peak_reserved_gb": 5.531,
+ "tps_invalid_reps": 0,
+ "ttft_ms": {
+  "median": 70.4804,
+  "q1": 70.4568,
+  "q3": 70.5132,
+  "iqr": 0.0564
+ },
+ "tokens_per_s": {
+  "median": 18.9176,
+  "q1": 18.8794,
+  "q3": 18.9936,
+  "iqr": 0.1143
+ },
+ "ttft_ms_raw": [
+  70.47,
+  70.45,
+  70.52,
+  70.64,
+  70.43,
+  70.5,
+  70.49,
+  71.76,
+  70.31,
+  70.47
+ ],
+ "tokens_per_s_raw": [
+  18.919,
+  18.916,
+  18.896,
+  18.722,
+  19.02,
+  18.75,
+  19.011,
+  18.874,
+  19.082,
+  18.94
+ ],
+ "gpu": "NVIDIA A100-SXM4-40GB",
+ "gpu_other_procs_before": "",
+ "gpu_temp_clock_throttle_before": "32, 210 MHz, 0x0000000000000001",
+ "gpu_temp_clock_throttle_after": "34, 1095 MHz, 0x0000000000000000",
+ "torch": "2.11.0+cu130",
+ "transformers": "5.22.0",
+ "python": "3.13.16",
+ "ts": "2026-11-04 04:50:20"
+}

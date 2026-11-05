@@ -1,0 +1,59 @@
+{
+ "model": "models/Qwen3-8B-Base-gptq4",
+ "dtype": "float16",
+ "quant": "pre",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 5.685,
+ "mem_after_load_gb": 5.655,
+ "peak_mem_gb": 5.785,
+ "peak_reserved_gb": 5.887,
+ "tps_invalid_reps": 0,
+ "ttft_ms": {
+  "median": 76.3759,
+  "q1": 76.3032,
+  "q3": 76.8471,
+  "iqr": 0.5439
+ },
+ "tokens_per_s": {
+  "median": 13.9376,
+  "q1": 13.8819,
+  "q3": 13.9891,
+  "iqr": 0.1072
+ },
+ "ttft_ms_raw": [
+  76.29,
+  76.3,
+  76.44,
+  76.43,
+  76.33,
+  76.98,
+  78.65,
+  76.32,
+  78.2,
+  76.08
+ ],
+ "tokens_per_s_raw": [
+  13.862,
+  13.877,
+  13.985,
+  13.848,
+  13.937,
+  13.938,
+  14.15,
+  13.898,
+  13.991,
+  14.102
+ ],
+ "gpu": "NVIDIA A100-SXM4-40GB",
+ "gpu_other_procs_before": "",
+ "gpu_temp_clock_throttle_before": "32, 210 MHz, 0x0000000000000001",
+ "gpu_temp_clock_throttle_after": "33, 1095 MHz, 0x0000000000000000",
+ "torch": "2.11.0+cu130",
+ "transformers": "5.22.0",
+ "python": "3.13.16",
+ "ts": "2026-11-04 03:48:23"
+}
