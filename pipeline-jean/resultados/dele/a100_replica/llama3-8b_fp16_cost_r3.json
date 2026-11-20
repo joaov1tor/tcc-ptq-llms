@@ -1,0 +1,59 @@
+{
+ "model": "models/Meta-Llama-3-8B",
+ "dtype": "float16",
+ "quant": "none",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 14.958,
+ "mem_after_load_gb": 14.958,
+ "peak_mem_gb": 15.085,
+ "peak_reserved_gb": 15.217,
+ "tps_invalid_reps": 0,
+ "ttft_ms": {
+  "median": 48.8455,
+  "q1": 48.7941,
+  "q3": 48.8885,
+  "iqr": 0.0945
+ },
+ "tokens_per_s": {
+  "median": 25.9821,
+  "q1": 25.8351,
+  "q3": 26.162,
+  "iqr": 0.3269
+ },
+ "ttft_ms_raw": [
+  48.8,
+  48.84,
+  49.08,
+  48.86,
+  48.79,
+  48.68,
+  48.85,
+  50.15,
+  48.9,
+  48.73
+ ],
+ "tokens_per_s_raw": [
+  25.909,
+  25.801,
+  25.992,
+  26.19,
+  25.756,
+  25.972,
+  25.811,
+  26.079,
+  26.32,
+  26.207
+ ],
+ "gpu": "NVIDIA A100-SXM4-40GB",
+ "gpu_other_procs_before": "",
+ "gpu_temp_clock_throttle_before": "32, 210 MHz, 0x0000000000000001",
+ "gpu_temp_clock_throttle_after": "38, 1410 MHz, 0x0000000000000000",
+ "torch": "2.11.0+cu130",
+ "transformers": "5.22.0",
+ "python": "3.13.16",
+ "ts": "2026-11-04 04:42:02"
+}

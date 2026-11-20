@@ -1,0 +1,98 @@
+[
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "fp16",
+    "source": "ours",
+    "ppl": 10.950710255351385,
+    "ppl_token": 6.99453175132945,
+    "peak_memory_gib": 15.2888,
+    "disk_gib": 15.2565,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int4-awq",
+    "source": "ours",
+    "ppl": 13.240213208244391,
+    "ppl_token": 7.994058177733411,
+    "peak_memory_gib": 9.1602,
+    "disk_gib": 5.6797,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int4-gptq",
+    "source": "ours",
+    "ppl": 11.456488944635566,
+    "ppl_token": 7.28877052187024,
+    "peak_memory_gib": 9.187,
+    "disk_gib": 5.6847,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int8",
+    "source": "ours",
+    "ppl": 11.059311008489754,
+    "ppl_token": 7.026852969310244,
+    "peak_memory_gib": 8.9492,
+    "disk_gib": 8.793,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "fp16",
+    "source": "ours",
+    "ppl": 7.794203521892395,
+    "ppl_token": 6.1358359630169055,
+    "peak_memory_gib": 14.9869,
+    "disk_gib": 14.9576,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int4-awq",
+    "source": "ours",
+    "ppl": 8.651101881086614,
+    "ppl_token": 6.736990780743944,
+    "peak_memory_gib": 8.6475,
+    "disk_gib": 5.3346,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int4-gptq",
+    "source": "ours",
+    "ppl": 8.577777620215734,
+    "ppl_token": 6.627492337550312,
+    "peak_memory_gib": 8.276,
+    "disk_gib": 5.3392,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int8",
+    "source": "ours",
+    "ppl": 7.916694375189206,
+    "ppl_token": 6.226653243645604,
+    "peak_memory_gib": 8.6502,
+    "disk_gib": 8.4627,
+    "n_ttft": 100,
+    "n_tps": 100,
+    "variants": []
+  }
+]

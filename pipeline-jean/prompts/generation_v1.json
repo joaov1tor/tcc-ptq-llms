@@ -1,0 +1,16 @@
+{
+  "version": "generation_v1",
+  "note": "Fixed prompts for TTFT and tokens/s (§6.5). Base models: plain-text continuations, no chat template. Do not edit; create generation_v2 instead.",
+  "prompts": [
+    "The history of the printing press begins in the fifteenth century, when",
+    "In linear algebra, an eigenvector of a square matrix is",
+    "The Amazon rainforest covers much of the Amazon basin of South America and",
+    "A compiler translates source code written in a high-level language into",
+    "During the Industrial Revolution, the introduction of steam power",
+    "Photosynthesis is the process by which green plants and some other organisms",
+    "The rules of chess specify that each player begins the game with",
+    "Quantization of neural networks reduces the numerical precision of the weights so that",
+    "The city of Rome was founded, according to tradition, in 753 BC, and",
+    "In economics, inflation refers to a general increase in prices that"
+  ]
+}

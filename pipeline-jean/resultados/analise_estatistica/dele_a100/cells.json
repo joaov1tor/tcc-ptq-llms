@@ -1,0 +1,98 @@
+[
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int4-awq",
+    "source": "drive",
+    "ppl": 6.7338,
+    "ppl_token": 6.7338,
+    "peak_memory_gib": 5.462,
+    "disk_gib": 5.335,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "fp16",
+    "source": "drive",
+    "ppl": 6.1358,
+    "ppl_token": 6.1358,
+    "peak_memory_gib": 15.085,
+    "disk_gib": 14.958,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int4-gptq",
+    "source": "drive",
+    "ppl": 6.6235,
+    "ppl_token": 6.6235,
+    "peak_memory_gib": 5.437,
+    "disk_gib": 5.339,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "meta-llama/Meta-Llama-3-8B",
+    "precision": "int8",
+    "source": "drive",
+    "ppl": 6.2267,
+    "ppl_token": 6.2267,
+    "peak_memory_gib": 8.607,
+    "disk_gib": 8.463,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int4-awq",
+    "source": "drive",
+    "ppl": 7.9838,
+    "ppl_token": 7.9838,
+    "peak_memory_gib": 5.812,
+    "disk_gib": 5.68,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "fp16",
+    "source": "drive",
+    "ppl": 6.9945,
+    "ppl_token": 6.9945,
+    "peak_memory_gib": 15.388,
+    "disk_gib": 15.256,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int4-gptq",
+    "source": "drive",
+    "ppl": 7.2795,
+    "ppl_token": 7.2795,
+    "peak_memory_gib": 5.785,
+    "disk_gib": 5.685,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  },
+  {
+    "model_id": "Qwen/Qwen3-8B-Base",
+    "precision": "int8",
+    "source": "drive",
+    "ppl": 7.0269,
+    "ppl_token": 7.0269,
+    "peak_memory_gib": 9.202,
+    "disk_gib": 8.793,
+    "n_ttft": 30,
+    "n_tps": 30,
+    "variants": []
+  }
+]

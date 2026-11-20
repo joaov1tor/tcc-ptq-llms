@@ -1,0 +1,13 @@
+# torch is not pinned here: Colab and the NGC image (docker/Dockerfile) ship their own CUDA build.
+# Versions below were validated on the Mac smoke (Python 3.12, torch 2.14.1, Oct 2026).
+torch
+transformers==5.20.2
+datasets==5.1.0
+accelerate==1.15.0
+huggingface_hub==2.2.0
+safetensors==0.8.0
+# INT8 (LLM.int8()). CUDA is the official path; 0.50 also runs on MPS/CPU for the Mac smoke.
+bitsandbytes==0.50.2
+pytest
+# opcional, só para cruzar 4 docs com o harness no Colab:
+# lm-eval[hf]==0.4.13

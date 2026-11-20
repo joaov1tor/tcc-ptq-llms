@@ -1,0 +1,18 @@
+{
+ "model": "models/Qwen3-8B-Base-awq4",
+ "dtype": "float16",
+ "quant": "pre",
+ "ctx": 2048,
+ "windows": 146,
+ "tokens_scored": 298862,
+ "ppl": 7.9838,
+ "seconds": 33.9,
+ "seed": 0,
+ "peak_mem_gb": 8.58,
+ "gpu": "NVIDIA A100-SXM4-40GB",
+ "torch": "2.11.0+cu130",
+ "transformers": "5.22.0",
+ "python": "3.13.16",
+ "dataset": "wikitext-2-raw-v1/test",
+ "ts": "2026-11-04 03:32:37"
+}

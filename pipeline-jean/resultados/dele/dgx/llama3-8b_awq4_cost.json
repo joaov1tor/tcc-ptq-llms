@@ -1,0 +1,57 @@
+{
+ "model": "models/Meta-Llama-3-8B-awq4",
+ "dtype": "float16",
+ "quant": "pre",
+ "prompt_len": 512,
+ "new_tokens": 128,
+ "warmup": 3,
+ "reps": 10,
+ "seed": 0,
+ "disk_gb": 5.335,
+ "mem_after_load_gb": 5.335,
+ "peak_mem_gb": 5.485,
+ "ttft_ms": {
+  "median": 121.9963,
+  "q1": 121.4975,
+  "q3": 122.2424,
+  "iqr": 0.7449
+ },
+ "tokens_per_s": {
+  "median": 36.2833,
+  "q1": 36.22,
+  "q3": 36.2987,
+  "iqr": 0.0787
+ },
+ "ttft_ms_raw": [
+  122.07,
+  121.93,
+  121.62,
+  122.16,
+  121.44,
+  122.61,
+  121.44,
+  121.46,
+  122.8,
+  122.27
+ ],
+ "tokens_per_s_raw": [
+  36.282,
+  36.333,
+  36.206,
+  36.261,
+  36.183,
+  36.313,
+  36.3,
+  36.194,
+  36.294,
+  36.284
+ ],
+ "gpu": "NVIDIA GB10",
+ "gpu_other_procs_before": "2505, /srv/ai/runtime/pyannote-test/.venv/bin/python3, 254 MiB\n2546872, /usr/local/lib/ollama/llama-server, 545 MiB\n89181, python3, 7423 MiB\n154958, /srv/ai/runtime/whisper.cpp/build/bin/whisper-server, 3684 MiB",
+ "gpu_temp_clock_throttle_before": "64, 2405 MHz, 0x0000000000000000",
+ "gpu_temp_clock_throttle_after": "63, 2496 MHz, 0x0000000000000000",
+ "torch": "2.14.0+cu130",
+ "transformers": "5.17.0",
+ "python": "3.12.13",
+ "ts": "2026-10-20 23:04:47"
+}
